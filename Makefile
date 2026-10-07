@@ -5,10 +5,10 @@ ENDPOINT ?= http://localhost:4566
 LOCAL_ENV := AWS_ENDPOINT_URL=$(ENDPOINT) AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test \
 	AWS_DEFAULT_REGION=ap-south-1 TABLE_NAME=pravaah-main BUCKET_NAME=pravaah-data-local
 
-.PHONY: ci test validate smoke calibrate layer build local-up local-down local-setup seed api clean deploy deploy-workers forecast-now
+.PHONY: ci test validate smoke calibrate dashboard-build dashboard-dev layer build local-up local-down local-setup seed api clean deploy deploy-workers forecast-now
 STACK ?= pravaah
 
-ci: test validate smoke
+ci: test validate smoke dashboard-build
 
 test:
 	$(PYTHON) -m pytest -q
@@ -21,6 +21,13 @@ smoke:
 
 calibrate:
 	$(PYTHON) scripts/calibrate_wue.py
+
+dashboard-build:
+	cd dashboard && npm ci --silent && npm run build --silent
+
+# VITE_API_URL defaults to http://localhost:3000 (make api)
+dashboard-dev:
+	cd dashboard && npm install --silent && npx vite
 
 # --- backend ------------------------------------------------------------------
 

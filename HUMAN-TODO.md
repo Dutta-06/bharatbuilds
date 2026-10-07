@@ -51,3 +51,10 @@ file in a PR) so everyone can see what's done.
 - [ ] `make forecast-now`, then check that `curl <ApiUrl>/surface?gpu_hours=4` returns 8 regions.
 - [ ] Submit a job with `"allowed_regions": ["eu-north-1"], "max_delay_h": 0` and check that
       the receipt shows `ran_in: eu-north-1` and `launched_via: cross-region-lambda`.
+
+## Dashboard (Step 9)
+- [ ] Amplify Hosting: connect the GitHub repo, pick the `main` branch. `amplify.yml` handles
+      the build. Set the environment variable `VITE_API_URL` to the stack's `ApiUrl` output.
+- [ ] Open it on an actual phone and run Lighthouse (mobile). The plan's target is above 80.
+- [ ] Ask someone outside the team to submit a job and find its receipt without help
+      (the plan's Step 9 "done when").

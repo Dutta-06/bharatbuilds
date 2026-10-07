@@ -18,7 +18,10 @@ Environmental Hacks (Bharat Builds Tour), Heat and Water track. Plan:
 | 2 Data | Sources (Open-Meteo, Electricity Maps + labelled modelled fallback), history pull, trace sampler + synthetic trace. Pulls need internet (see HUMAN-TODO.md) |
 | 3 Local backend | SAM, DynamoDB, 7 Lambdas, LocalStack, `make seed`; `curl localhost:3000/surface?gpu_hours=4` verified end to end |
 | 6 Scheduler | Greedy, deadline-constrained, with constraints, alternatives and explanations |
-| 4, 5, 7+ | Not started |
+| 5 Forecast pipeline | `pravaah-forecast` state machine, hourly schedule, verified in Step Functions Local |
+| 7 Executor | `pravaah-run` state machine (Wait, cross-region worker, receipt, SNS), verified in Step Functions Local |
+| 9 Dashboard | React + Vite + Leaflet: Submit, Queue, Surface, Job/receipt, Savings, Forecast quality |
+| 4, 8, 10+ | Not started (8 = deploy, needs the AWS account) |
 
 Anything that needs a human (keys, AWS, internet-only runs, source checks) is in
 [`HUMAN-TODO.md`](HUMAN-TODO.md).
@@ -61,6 +64,15 @@ If `public.ecr.aws` is blocked: `docker pull amazon/aws-lambda-python:3.12` and
 `make api SAM_LOCAL_ARGS="--invoke-image amazon/aws-lambda-python:3.12"`.
 Data model: [`docs/data-model.md`](docs/data-model.md).
 
+## Dashboard
+
+```bash
+make api            # in one terminal (backend on :3000)
+make dashboard-dev  # in another: http://localhost:5173
+```
+
+Hosted on Amplify (`amplify.yml`). Set `VITE_API_URL` to the stack's `ApiUrl`.
+
 ## Layout
 
 ```
@@ -75,6 +87,8 @@ scheduler/            cost surface, greedy placement, trace loader
 sources/              Open-Meteo, Electricity Maps, modelled carbon fallback, synthetic weather
 backend/              DynamoDB access, forecasts store, jobs, HTTP helpers
 functions/            one folder per Lambda
+statemachines/        pravaah-forecast and pravaah-run (ASL)
+dashboard/            React + Vite + Leaflet front end
 data/regions.yaml     candidate AWS regions
 data/trace.synthetic.csv  labelled synthetic job queue (until the Alibaba trace is sampled)
 scripts/              validate_data, calibrate_wue, pull_history, sample_trace, local_setup, seed_local
