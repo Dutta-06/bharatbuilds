@@ -1,0 +1,63 @@
+"""Build the Strands agent.
+
+Model: Claude Opus 5.5, via the Anthropic API (ASSISTANT_PROVIDER=anthropic, needs
+ANTHROPIC_API_KEY) or Amazon Bedrock (ASSISTANT_PROVIDER=bedrock, IAM credentials;
+set BEDROCK_MODEL_ID to the Claude Opus 5.5 model or inference-profile id enabled in
+your account and region).
+"""
+
+from __future__ import annotations
+
+import os
+from datetime import datetime, timezone
+
+from . import tools as t
+
+MODEL_ID = "claude-opus-5-5"
+
+SYSTEM_PROMPT = """You help ML engineers run flexible AI jobs where and when they use the least water and carbon.
+
+You have three tools: get_surface (what each region and hour would cost), submit_job (place and run a job),
+and get_receipt (what a job saved). Turn the user's request into a correctly constrained job:
+- GPU-hours, GPU type and parallel GPUs as stated (default 1 A100).
+- Deadline: convert relative dates ("by Friday", "tomorrow 6 pm IST") to an ISO 8601 UTC timestamp using
+  the current time given with each message. Times without a zone are IST (UTC+05:30).
+- Weights: "least water" means water_weight 1, carbon_weight 0; "least carbon" the reverse; otherwise 0.5/0.5.
+- Region limits: honour "only in India/EU/US" with allowed_regions or data_residency.
+- If the request is missing the amount of work or the deadline, ask one short question instead of guessing.
+Submit only when the user asks to run or schedule something; for "when/where would it be best" questions,
+use get_surface and answer without submitting.
+Reply in the user's language, in at most three sentences, and always end with what happens next
+(for example when the job will start, or what you need from them)."""
+
+
+def build_model():
+    provider = os.environ.get("ASSISTANT_PROVIDER", "anthropic")
+    if provider == "bedrock":
+        from strands.models.bedrock import BedrockModel
+
+        return BedrockModel(model_id=os.environ.get("BEDROCK_MODEL_ID", f"anthropic.{MODEL_ID}"),
+                            region_name=os.environ.get("BEDROCK_REGION", os.environ.get("AWS_REGION")))
+    from strands.models.anthropic import AnthropicModel
+
+    return AnthropicModel(model_id=MODEL_ID, max_tokens=16000)
+
+
+def build_agent(model=None):
+    from strands import Agent, tool
+
+    return Agent(
+        model=model or build_model(),
+        system_prompt=SYSTEM_PROMPT,
+        tools=[tool(t.get_surface), tool(t.submit_job), tool(t.get_receipt)],
+        callback_handler=None,
+    )
+
+
+def ask(message: str, agent=None, now: datetime | None = None) -> str:
+    """One turn. The current time goes in the user message (not the system prompt) so the
+    system prompt stays byte-stable for caching."""
+    now = now or datetime.now(timezone.utc)
+    agent = agent or build_agent()
+    result = agent(f"[Current time: {now:%Y-%m-%dT%H:%MZ} ({now:%A})]\n{message}")
+    return str(result).strip()

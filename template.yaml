@@ -2,16 +2,523 @@ AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Description: Pravaah - water- and carbon-aware scheduling for AI workloads
 
-# Step 0 skeleton. Step 3 adds the table, bucket and real functions.
+# Build with `make build` (packs model/, scheduler/, sources/, backend/, data and
+# PyYAML into the core layer, then runs `sam build`). Data model: docs/data-model.md.
+
+Parameters:
+  ElectricityMapsToken:
+    Type: String
+    NoEcho: true
+    Default: ""
+    Description: Electricity Maps API token. Empty = modelled carbon profile (labelled as such).
+  Offline:
+    Type: String
+    AllowedValues: ["true", "false"]
+    Default: "false"
+    Description: "true = synthetic weather (no Open-Meteo calls). For demos without internet only."
+  NotificationEmail:
+    Type: String
+    Default: ""
+    Description: Email to subscribe to job notifications (confirm the email AWS sends). Empty = none.
+  DemoRunSeconds:
+    Type: Number
+    Default: 20
+    Description: How long the proxy workload runs in the chosen region.
+  AssistantProvider:
+    Type: String
+    AllowedValues: [anthropic, bedrock]
+    Default: anthropic
+  AnthropicApiKey:
+    Type: String
+    NoEcho: true
+    Default: ""
+    Description: For the assistant when AssistantProvider=anthropic (consider Secrets Manager for production)
+  BedrockModelId:
+    Type: String
+    Default: ""
+    Description: For AssistantProvider=bedrock, the Claude Opus 5.5 model or inference-profile id enabled in this account
+  TableReadCapacity:
+    Type: Number
+    Default: 15
+  TableWriteCapacity:
+    Type: Number
+    Default: 20
+
+Conditions:
+  HasEmail: !Not [!Equals [!Ref NotificationEmail, ""]]
 
 Globals:
   Function:
     Runtime: python3.12
-    Architectures: [arm64]
-    MemorySize: 256
-    Timeout: 10
+    # x86_64 so `sam local` runs on the standard Lambda image everywhere; the cost
+    # difference is negligible inside the free tier.
+    Architectures: [x86_64]
+    MemorySize: 512
+    Timeout: 30
+    Layers:
+      - !Ref CoreLayer
+    Environment:
+      Variables:
+        TABLE_NAME: !Ref MainTable
+        BUCKET_NAME: !Ref DataBucket
+        ELECTRICITYMAPS_TOKEN: !Ref ElectricityMapsToken
+        PRAVAAH_OFFLINE: !Ref Offline
+        LOCAL_ENDPOINT_URL: ""  # set by env.local.json for sam local + LocalStack only
 
 Resources:
+  # --- API (explicit so it can carry the Cognito authorizer and throttling) -------
+
+  PravaahApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      CorsConfiguration:
+        AllowOrigins: ["*"]
+        AllowMethods: [GET, POST, PUT, OPTIONS]
+        AllowHeaders: [content-type, authorization]
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 100
+        ThrottlingRateLimit: 50
+      Auth:
+        Authorizers:
+          CognitoAuthorizer:
+            IdentitySource: $request.header.Authorization
+            JwtConfiguration:
+              issuer: !Sub "https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPool}"
+              audience: [!Ref UserPoolClient]
+
+  # --- Step 12: sign-in for platform leads --------------------------------------
+
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: pravaah-users
+      UsernameAttributes: [email]
+      AutoVerifiedAttributes: [email]
+      AdminCreateUserConfig: {AllowAdminCreateUserOnly: true}
+      Policies:
+        PasswordPolicy: {MinimumLength: 12, RequireNumbers: true, RequireSymbols: false,
+                         RequireUppercase: true, RequireLowercase: true}
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref UserPool
+      ClientName: pravaah-dashboard
+      GenerateSecret: false
+      ExplicitAuthFlows: [ALLOW_USER_SRP_AUTH, ALLOW_USER_PASSWORD_AUTH, ALLOW_REFRESH_TOKEN_AUTH]
+
+  PlatformLeadsGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      UserPoolId: !Ref UserPool
+      GroupName: platform-leads
+      Description: Can change team policies
+
+  PoliciesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/policies/
+      Handler: app.handler
+      Policies:
+        - DynamoDBCrudPolicy: {TableName: !Ref MainTable}
+      Events:
+        Read:
+          Type: HttpApi
+          Properties: {ApiId: !Ref PravaahApi, Path: "/policies/{team}", Method: get, Auth: {Authorizer: CognitoAuthorizer}}
+        Write:
+          Type: HttpApi
+          Properties: {ApiId: !Ref PravaahApi, Path: "/policies/{team}", Method: put, Auth: {Authorizer: CognitoAuthorizer}}
+
+  AssistantLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: pravaah-assistant-deps
+      Description: Strands Agents SDK + Anthropic SDK (make assistant-layer)
+      ContentUri: build/assistant-layer/
+      CompatibleRuntimes: [python3.12]
+
+  ChatFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/chat/
+      Handler: app.handler
+      Timeout: 120
+      MemorySize: 1024
+      Layers: [!Ref AssistantLayer]
+      Environment:
+        Variables:
+          ASSISTANT_PROVIDER: !Ref AssistantProvider
+          ANTHROPIC_API_KEY: !Ref AnthropicApiKey
+          BEDROCK_MODEL_ID: !Ref BedrockModelId
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: [bedrock:InvokeModel, bedrock:InvokeModelWithResponseStream]
+              Resource: "*"
+      Events:
+        Chat:
+          Type: HttpApi
+          Properties: {ApiId: !Ref PravaahApi, Path: /chat, Method: post}
+
+  GetPriceFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/get_price/
+      Handler: app.handler
+      Policies:
+        - DynamoDBReadPolicy: {TableName: !Ref MainTable}
+      Events:
+        Price:
+          Type: HttpApi
+          Properties: {ApiId: !Ref PravaahApi, Path: /price, Method: get}
+
+  MainTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: pravaah-main
+      BillingMode: PROVISIONED
+      ProvisionedThroughput:
+        ReadCapacityUnits: !Ref TableReadCapacity
+        WriteCapacityUnits: !Ref TableWriteCapacity
+      AttributeDefinitions:
+        - {AttributeName: PK, AttributeType: S}
+        - {AttributeName: SK, AttributeType: S}
+        - {AttributeName: GSI1PK, AttributeType: S}
+        - {AttributeName: GSI1SK, AttributeType: S}
+      KeySchema:
+        - {AttributeName: PK, KeyType: HASH}
+        - {AttributeName: SK, KeyType: RANGE}
+      GlobalSecondaryIndexes:
+        - IndexName: GSI1
+          KeySchema:
+            - {AttributeName: GSI1PK, KeyType: HASH}
+            - {AttributeName: GSI1SK, KeyType: RANGE}
+          Projection: {ProjectionType: ALL}
+          ProvisionedThroughput: {ReadCapacityUnits: 5, WriteCapacityUnits: 5}
+      TimeToLiveSpecification:
+        AttributeName: expires_at
+        Enabled: true
+
+  DataBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  CoreLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: pravaah-core
+      Description: Cost model, scheduler, data sources, backend helpers, config
+      ContentUri: build/layer/
+      CompatibleRuntimes: [python3.12]
+
+  FetchForecastFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/fetch_forecast/
+      Handler: app.handler
+      Policies:
+        - S3WritePolicy: {BucketName: !Ref DataBucket}
+
+  PredictFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/predict/
+      Handler: app.handler
+      Policies:
+        - DynamoDBReadPolicy: {TableName: !Ref MainTable}
+
+  StoreForecastFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/store_forecast/
+      Handler: app.handler
+      Policies:
+        - DynamoDBWritePolicy: {TableName: !Ref MainTable}
+
+  ScoreGridFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/score_grid/
+      Handler: app.handler
+      Policies:
+        - DynamoDBCrudPolicy: {TableName: !Ref MainTable}
+
+  GetSurfaceFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/get_surface/
+      Handler: app.handler
+      Policies:
+        - DynamoDBReadPolicy: {TableName: !Ref MainTable}
+      Events:
+        Surface:
+          Type: HttpApi
+          Properties: {ApiId: !Ref PravaahApi, Path: /surface, Method: get}
+        Regions:
+          Type: HttpApi
+          Properties: {ApiId: !Ref PravaahApi, Path: /regions, Method: get}
+
+  SubmitJobFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/submit_job/
+      Handler: app.handler
+      Environment:
+        Variables:
+          RUN_STATE_MACHINE_ARN: !Ref RunStateMachine
+      Policies:
+        - DynamoDBCrudPolicy: {TableName: !Ref MainTable}
+        - StepFunctionsExecutionPolicy: {StateMachineName: !GetAtt RunStateMachine.Name}
+      Events:
+        Submit:
+          Type: HttpApi
+          Properties: {ApiId: !Ref PravaahApi, Path: /jobs, Method: post}
+
+  GetJobFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/get_job/
+      Handler: app.handler
+      Policies:
+        - DynamoDBReadPolicy: {TableName: !Ref MainTable}
+      Events:
+        Queue:
+          Type: HttpApi
+          Properties: {ApiId: !Ref PravaahApi, Path: /jobs, Method: get}
+        Job:
+          Type: HttpApi
+          Properties: {ApiId: !Ref PravaahApi, Path: "/jobs/{id}", Method: get}
+
+  GetReceiptFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/get_receipt/
+      Handler: app.handler
+      Policies:
+        - DynamoDBReadPolicy: {TableName: !Ref MainTable}
+      Events:
+        Receipt:
+          Type: HttpApi
+          Properties: {ApiId: !Ref PravaahApi, Path: "/jobs/{id}/receipt", Method: get}
+
+  ExecutorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/executor/
+      Handler: app.handler
+      Timeout: 900
+      Environment:
+        Variables:
+          WORKER_FUNCTION_NAME: pravaah-worker
+          DEMO_RUN_SECONDS: !Ref DemoRunSeconds
+      Policies:
+        - DynamoDBCrudPolicy: {TableName: !Ref MainTable}
+        - S3WritePolicy: {BucketName: !Ref DataBucket}
+        - Statement:
+            - Effect: Allow
+              Action: lambda:InvokeFunction
+              # the worker in any region (cross-region launch)
+              Resource: !Sub "arn:aws:lambda:*:${AWS::AccountId}:function:pravaah-worker"
+
+  # The workload itself. Deployed here and, via worker.yaml, in every region jobs can run in.
+  WorkerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: pravaah-worker
+      CodeUri: functions/worker/
+      Handler: app.handler
+      Timeout: 660
+      MemorySize: 1769   # one full vCPU
+      Layers: []
+
+  NotificationsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: pravaah-notifications
+
+  NotificationsEmail:
+    Type: AWS::SNS::Subscription
+    Condition: HasEmail
+    Properties:
+      TopicArn: !Ref NotificationsTopic
+      Protocol: email
+      Endpoint: !Ref NotificationEmail
+
+  StateMachineLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /pravaah/statemachines
+      RetentionInDays: 14
+
+  ForecastStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Name: pravaah-forecast
+      DefinitionUri: statemachines/forecast.asl.json
+      DefinitionSubstitutions:
+        FetchForecastArn: !GetAtt FetchForecastFunction.Arn
+        StoreForecastArn: !GetAtt StoreForecastFunction.Arn
+        PredictArn: !GetAtt PredictFunction.Arn
+        RegionList: '["ap-south-1","ap-south-2","ap-southeast-1","eu-north-1","eu-west-1","eu-central-1","us-east-1","us-west-2"]'
+      Policies:
+        - LambdaInvokePolicy: {FunctionName: !Ref FetchForecastFunction}
+        - LambdaInvokePolicy: {FunctionName: !Ref StoreForecastFunction}
+        - LambdaInvokePolicy: {FunctionName: !Ref PredictFunction}
+        - CloudWatchLogsFullAccess
+      Logging:
+        Level: ERROR
+        IncludeExecutionData: false
+        Destinations:
+          - CloudWatchLogsLogGroup: {LogGroupArn: !GetAtt StateMachineLogs.Arn}
+      Events:
+        Hourly:
+          Type: Schedule
+          Properties:
+            Schedule: cron(5 * * * ? *)   # 5 past every hour, after providers update
+            Description: Refresh the 48 h forecast grid
+
+  RunStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Name: pravaah-run
+      DefinitionUri: statemachines/run.asl.json
+      DefinitionSubstitutions:
+        ExecutorArn: !GetAtt ExecutorFunction.Arn
+        TopicArn: !Ref NotificationsTopic
+      Policies:
+        - LambdaInvokePolicy: {FunctionName: !Ref ExecutorFunction}
+        - SNSPublishMessagePolicy: {TopicName: !GetAtt NotificationsTopic.TopicName}
+        - CloudWatchLogsFullAccess
+      Logging:
+        Level: ERROR
+        IncludeExecutionData: false
+        Destinations:
+          - CloudWatchLogsLogGroup: {LogGroupArn: !GetAtt StateMachineLogs.Arn}
+
+  # --- Step 8: CDN, dashboard, alarms ------------------------------------------
+
+  # Reads (/surface, /regions, /jobs/{id}/receipt) are cacheable; the API sets
+  # Cache-Control per response, and CloudFront honours it (max 5 min). Writes pass through.
+  ApiCachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Name: !Sub "${AWS::StackName}-api"
+        DefaultTTL: 0
+        MinTTL: 0
+        MaxTTL: 300
+        ParametersInCacheKeyAndForwardedToOrigin:
+          EnableAcceptEncodingGzip: true
+          EnableAcceptEncodingBrotli: true
+          HeadersConfig: {HeaderBehavior: none}
+          CookiesConfig: {CookieBehavior: none}
+          QueryStringsConfig: {QueryStringBehavior: all}
+
+  ApiDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: Pravaah API
+        PriceClass: PriceClass_200   # includes India
+        Origins:
+          - Id: api
+            DomainName: !Sub "${PravaahApi}.execute-api.${AWS::Region}.amazonaws.com"
+            CustomOriginConfig: {OriginProtocolPolicy: https-only}
+        DefaultCacheBehavior:
+          TargetOriginId: api
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [GET, HEAD, OPTIONS, PUT, POST, PATCH, DELETE]
+          CachedMethods: [GET, HEAD]
+          CachePolicyId: !Ref ApiCachePolicy
+          # AllViewerExceptHostHeader: forwards the body/query for POSTs, not Host
+          OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac
+
+  PipelineFailedAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: pravaah-forecast-failed
+      AlarmDescription: The hourly forecast pipeline failed or timed out
+      Namespace: AWS/States
+      MetricName: ExecutionsFailed
+      Dimensions: [{Name: StateMachineArn, Value: !Ref ForecastStateMachine}]
+      Statistic: Sum
+      Period: 3600
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref NotificationsTopic]
+
+  PipelineStaleAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: pravaah-forecast-stale
+      AlarmDescription: No successful forecast run in the last 2 hours
+      Namespace: AWS/States
+      MetricName: ExecutionsSucceeded
+      Dimensions: [{Name: StateMachineArn, Value: !Ref ForecastStateMachine}]
+      Statistic: Sum
+      Period: 7200
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: LessThanThreshold
+      TreatMissingData: breaching
+      AlarmActions: [!Ref NotificationsTopic]
+
+  RunFailedAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: pravaah-run-failed
+      AlarmDescription: A job execution failed
+      Namespace: AWS/States
+      MetricName: ExecutionsFailed
+      Dimensions: [{Name: StateMachineArn, Value: !Ref RunStateMachine}]
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref NotificationsTopic]
+
+  Dashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: pravaah
+      DashboardBody: !Sub |
+        {"widgets": [
+          {"type": "metric", "x": 0, "y": 0, "width": 12, "height": 6, "properties": {
+            "title": "Forecast pipeline runs", "region": "${AWS::Region}", "stat": "Sum", "period": 3600,
+            "metrics": [["AWS/States", "ExecutionsSucceeded", "StateMachineArn", "${ForecastStateMachine}"],
+                        [".", "ExecutionsFailed", ".", "."]]}},
+          {"type": "metric", "x": 12, "y": 0, "width": 12, "height": 6, "properties": {
+            "title": "Jobs placed and run", "region": "${AWS::Region}", "stat": "Sum", "period": 3600,
+            "metrics": [["Pravaah", "JobsPlaced"], [".", "JobsInfeasible"],
+                        ["AWS/States", "ExecutionsSucceeded", "StateMachineArn", "${RunStateMachine}"],
+                        [".", "ExecutionsFailed", ".", "."]]}},
+          {"type": "metric", "x": 0, "y": 6, "width": 12, "height": 6, "properties": {
+            "title": "Modelled savings (sum per hour)", "region": "${AWS::Region}", "stat": "Sum", "period": 3600,
+            "metrics": [["Pravaah", "LitresSaved"], [".", "KgCO2Saved"]]}},
+          {"type": "metric", "x": 12, "y": 6, "width": 12, "height": 6, "properties": {
+            "title": "Forecast error, wet-bulb (°C, nowcast proxy)", "region": "${AWS::Region}", "stat": "Average", "period": 3600,
+            "metrics": [["Pravaah", "ForecastMAEWetBulb", "Region", "ap-south-1"], ["...", "ap-southeast-1"],
+                        ["...", "eu-north-1"], ["...", "us-east-1"]]}},
+          {"type": "metric", "x": 0, "y": 12, "width": 12, "height": 6, "properties": {
+            "title": "API latency (ms)", "region": "${AWS::Region}", "stat": "p90", "period": 300,
+            "metrics": [["AWS/ApiGateway", "Latency", "ApiId", "${PravaahApi}"]]}},
+          {"type": "metric", "x": 12, "y": 12, "width": 12, "height": 6, "properties": {
+            "title": "Lambda errors", "region": "${AWS::Region}", "stat": "Sum", "period": 300,
+            "metrics": [["AWS/Lambda", "Errors", "FunctionName", "${FetchForecastFunction}"],
+                        ["...", "${StoreForecastFunction}"], ["...", "${SubmitJobFunction}"],
+                        ["...", "${GetSurfaceFunction}"], ["...", "${ExecutorFunction}"]]}}
+        ]}
+
   HealthFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -20,10 +527,27 @@ Resources:
       Events:
         Health:
           Type: HttpApi
-          Properties:
-            Path: /health
-            Method: get
+          Properties: {ApiId: !Ref PravaahApi, Path: /health, Method: get}
 
 Outputs:
   ApiUrl:
-    Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+    Description: Use this (CloudFront) as the dashboard's VITE_API_URL
+    Value: !Sub "https://${ApiDistribution.DomainName}"
+  ApiOriginUrl:
+    Value: !Sub "https://${PravaahApi}.execute-api.${AWS::Region}.amazonaws.com"
+  DashboardUrl:
+    Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=pravaah"
+  TableName:
+    Value: !Ref MainTable
+  BucketName:
+    Value: !Ref DataBucket
+  ForecastStateMachineArn:
+    Value: !Ref ForecastStateMachine
+  RunStateMachineArn:
+    Value: !Ref RunStateMachine
+  NotificationsTopicArn:
+    Value: !Ref NotificationsTopic
+  UserPoolId:
+    Value: !Ref UserPool
+  UserPoolClientId:
+    Value: !Ref UserPoolClient

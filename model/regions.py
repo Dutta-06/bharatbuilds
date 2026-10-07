@@ -17,6 +17,7 @@ PATH = Path(__file__).resolve().parent.parent / "data" / "regions.yaml"
 class Region:
     id: str
     name: str
+    geo: str
     lat: float
     lon: float
     cooling_type: str
@@ -50,6 +51,7 @@ def load(path: Path = PATH) -> dict[str, Region]:
         out[r["id"]] = Region(
             id=r["id"],
             name=r["name"],
+            geo=r["geo"],
             lat=r["lat"],
             lon=r["lon"],
             cooling_type=r["cooling_type"],

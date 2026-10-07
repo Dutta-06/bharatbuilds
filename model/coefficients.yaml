@@ -250,3 +250,25 @@ measured_energy:
       url: https://mlco2.github.io/codecarbon/methodology.html
     note: Band on energy after a run. Without hardware counters, CodeCarbon's figure is itself an estimate.
     checked: false
+
+proxy_run:
+  # The demo "job" that actually runs in the chosen region is a small CPU training loop
+  # (Lambda and Fargate have no GPUs). Its energy = vCPU-hours × average watts per vCPU.
+  min_watts_per_vcpu:
+    value: 0.74
+    unit: W
+    uncertainty: 0.3
+    source:
+      title: Cloud Carbon Footprint methodology, AWS average min watts per vCPU
+      url: https://github.com/cloud-carbon-footprint/cloud-carbon-footprint/blob/e48c659f6dafc8b783e570053024f28b88aafc79/microsite/docs/Methodology.md
+    note: "Average Watts = Min + utilisation × (Max - Min) (CCF). Values from memory of the CCF table; check."
+    checked: false
+  max_watts_per_vcpu:
+    value: 3.5
+    unit: W
+    uncertainty: 0.3
+    source:
+      title: Cloud Carbon Footprint methodology, AWS average max watts per vCPU
+      url: https://github.com/cloud-carbon-footprint/cloud-carbon-footprint/blob/e48c659f6dafc8b783e570053024f28b88aafc79/microsite/docs/Methodology.md
+    note: The proxy loop runs one vCPU at ~100%, so it sits near max.
+    checked: false

@@ -18,7 +18,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from model import openmeteo, regions  # noqa: E402
+from model import regions  # noqa: E402
+from sources import openmeteo  # noqa: E402
 from model.water import calibration_factor, wue_site_physics  # noqa: E402
 from model.wetbulb import wet_bulb  # noqa: E402
 

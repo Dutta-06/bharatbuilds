@@ -104,7 +104,7 @@ def test_cli_offline(capsys):
 
 
 def test_cli_compare_uses_live_weather(monkeypatch, capsys):
-    from model import openmeteo
+    from sources import openmeteo
 
     monkeypatch.setattr(openmeteo, "hour_weather", lambda lat, lon, hour: (30.0 if lat < 30 else 10.0, 70.0, 1010.0))
     code = main(["--region", "ap-south-1", "--hour", "2026-10-10T09:00Z", "--gpu-hours", "4",

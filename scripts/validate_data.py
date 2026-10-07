@@ -33,11 +33,12 @@ REGIONS_SCHEMA = {
     "required": ["regions"],
     "properties": {"regions": {"type": "array", "minItems": 1, "items": {
         "type": "object",
-        "required": ["id", "name", "lat", "lon", "cooling_type", "electricity_maps_zone",
+        "required": ["id", "name", "geo", "lat", "lon", "cooling_type", "electricity_maps_zone",
                      "water_stress_score", "grid_mix"],
         "properties": {
             "id": {"type": "string", "pattern": "^[a-z]{2}(-[a-z]+)+-[0-9]$"},
             "name": {"type": "string"},
+            "geo": {"type": "string", "pattern": "^[A-Z]{2}$"},
             "lat": {"type": "number", "minimum": -90, "maximum": 90},
             "lon": {"type": "number", "minimum": -180, "maximum": 180},
             "cooling_type": {"enum": list(COOLING_TYPES)},
@@ -126,12 +127,38 @@ def validate(root: Path = ROOT) -> tuple[list[str], list[str]]:
     return errors, warnings
 
 
+def validate_history(root: Path = ROOT, min_days: int = 30) -> list[str]:
+    """Plan Step 2: history covers every region in the config."""
+    import csv
+    from datetime import datetime
+
+    errors = []
+    regions = yaml.safe_load((root / "data" / "regions.yaml").read_text(encoding="utf-8"))["regions"]
+    for r in regions:
+        path = root / "data" / "history" / f"{r['id']}.csv"
+        if not path.exists():
+            errors.append(f"history: no {path.relative_to(root)} (run scripts/pull_history.py)")
+            continue
+        with path.open(newline="", encoding="utf-8") as f:
+            hours = [row["hour"] for row in csv.DictReader(f)]
+        if not hours:
+            errors.append(f"history: {r['id']} is empty")
+            continue
+        span = (datetime.fromisoformat(max(hours)) - datetime.fromisoformat(min(hours))).days + 1
+        if span < min_days:
+            errors.append(f"history: {r['id']} covers {span} days, need {min_days}")
+    return errors
+
+
 def main() -> int:
     p = argparse.ArgumentParser()
     p.add_argument("--strict", action="store_true")
     p.add_argument("--quiet", action="store_true")
+    p.add_argument("--history", action="store_true", help="also require data/history for every region")
     args = p.parse_args()
     errors, warnings = validate()
+    if args.history:
+        errors += validate_history()
     if args.quiet and warnings:
         print(f"{len(warnings)} warnings (run without --quiet to list)")
     else:

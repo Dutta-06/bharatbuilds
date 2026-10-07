@@ -1,0 +1,94 @@
+{
+  "Comment": "pravaah-run: load the placed job, wait for its slot, run it in the chosen region, write the receipt, notify.",
+  "StartAt": "Load",
+  "States": {
+    "Load": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {"FunctionName": "${ExecutorArn}", "Payload": {"action": "load", "job_id.$": "$.job_id"}},
+      "ResultSelector": {"job.$": "$.Payload"},
+      "OutputPath": "$.job",
+      "Retry": [{"ErrorEquals": ["Lambda.ServiceException", "Lambda.TooManyRequestsException"], "IntervalSeconds": 2, "MaxAttempts": 3, "BackoffRate": 2.0}],
+      "Catch": [{"ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "MarkFailed"}],
+      "Next": "IsPlaced"
+    },
+    "IsPlaced": {
+      "Type": "Choice",
+      "Choices": [{"Variable": "$.status", "StringEquals": "waiting", "Next": "NotifyPlaced"}],
+      "Default": "NotifyInfeasible"
+    },
+    "NotifyInfeasible": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::sns:publish",
+      "Parameters": {"TopicArn": "${TopicArn}", "Subject": "Pravaah: job could not be placed",
+                     "Message.$": "States.Format('Job {} could not be placed: {}', $.job_id, $.reason)"},
+      "ResultPath": null,
+      "Next": "NotRun"
+    },
+    "NotRun": {"Type": "Succeed"},
+    "NotifyPlaced": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::sns:publish",
+      "Parameters": {"TopicArn": "${TopicArn}", "Subject": "Pravaah: job placed",
+                     "Message.$": "States.Format('Job {} placed in {} from {} UTC. {}', $.job_id, $.region, $.start, $.reason)"},
+      "ResultPath": null,
+      "Next": "WaitForSlot"
+    },
+    "WaitForSlot": {"Type": "Wait", "TimestampPath": "$.wait_until", "Next": "NotifyStarted"},
+    "NotifyStarted": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::sns:publish",
+      "Parameters": {"TopicArn": "${TopicArn}", "Subject": "Pravaah: job started",
+                     "Message.$": "States.Format('Job {} is starting in {}.', $.job_id, $.region)"},
+      "ResultPath": null,
+      "Next": "Launch"
+    },
+    "Launch": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {"FunctionName": "${ExecutorArn}",
+                     "Payload": {"action": "launch", "job_id.$": "$.job_id", "region.$": "$.region"}},
+      "ResultSelector": {"run.$": "$.Payload"},
+      "ResultPath": "$.launched",
+      "TimeoutSeconds": 900,
+      "Catch": [{"ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "MarkFailed"}],
+      "Next": "Finish"
+    },
+    "Finish": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {"FunctionName": "${ExecutorArn}",
+                     "Payload": {"action": "finish", "job_id.$": "$.job_id", "run.$": "$.launched.run"}},
+      "ResultSelector": {"summary.$": "$.Payload"},
+      "ResultPath": "$.finished",
+      "Catch": [{"ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "MarkFailed"}],
+      "Next": "NotifyFinished"
+    },
+    "NotifyFinished": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::sns:publish",
+      "Parameters": {"TopicArn": "${TopicArn}", "Subject": "Pravaah: job finished, receipt ready",
+                     "Message.$": "States.Format('Job {} ran in {}. Versus running now in the submit region it saved {} L of water ({}%) and {} kg CO2 ({}%), modelled. Receipt: /jobs/{}/receipt', $.job_id, $.finished.summary.ran_in, $.finished.summary.saved_litres, $.finished.summary.saved_litres_pct, $.finished.summary.saved_kg_co2, $.finished.summary.saved_kg_co2_pct, $.job_id)"},
+      "ResultPath": null,
+      "Next": "Succeeded"
+    },
+    "Succeeded": {"Type": "Succeed"},
+    "MarkFailed": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {"FunctionName": "${ExecutorArn}",
+                     "Payload": {"action": "fail", "job_id.$": "$.job_id", "error.$": "$.error"}},
+      "ResultPath": null,
+      "Next": "NotifyFailed"
+    },
+    "NotifyFailed": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::sns:publish",
+      "Parameters": {"TopicArn": "${TopicArn}", "Subject": "Pravaah: job failed",
+                     "Message.$": "States.Format('Job {} failed: {}', $.job_id, $.error.Cause)"},
+      "ResultPath": null,
+      "Next": "Failed"
+    },
+    "Failed": {"Type": "Fail", "Error": "JobFailed"}
+  }
+}

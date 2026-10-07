@@ -3,3 +3,7 @@
 pytest>=8
 jsonschema>=4.18
 pyyaml>=6
+boto3>=1.34
+moto[dynamodb,s3,stepfunctions]>=5
+scikit-learn>=1.4   # training only (Step 4); the Lambda uses exported trees
+ortools>=9.10       # Step 11 split solver (Lambda uses the exact DP fallback)

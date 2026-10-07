@@ -15,7 +15,9 @@ import argparse
 import json
 import sys
 
-from . import energy, openmeteo, regions
+from sources import openmeteo
+
+from . import energy, regions
 from .cost import Conditions, Weights, cost, footprint
 
 
