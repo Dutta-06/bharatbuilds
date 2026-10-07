@@ -40,6 +40,17 @@ file in a PR) so everyone can see what's done.
       `data/trace.synthetic.csv` and must say so.
 
 ## Deploy to AWS (Step 8)
+Status (2026-10-07): stack `pravaah` is deployed in ap-south-1 with `EnableCloudFront=false`,
+workers are in 6 of 8 regions, `/surface` returns 8 regions and a cross-region job ran in
+eu-north-1. Still open, in order:
+- [ ] **CloudFront is blocked**: AWS says "Your account must be verified before you can add new
+      CloudFront resources". Open an AWS Support case (Account and billing) with that error text.
+      Once cleared: `sam deploy` with `EnableCloudFront=true` (the default), then use the new `ApiUrl`.
+- [ ] A Lambda quota increase (concurrent executions 10 -> 1000) was requested through Service
+      Quotas. The load test fails at 10 (503s) until it is granted or CloudFront caching is on.
+      New accounts are often denied; if so, ask in the same Support case.
+- [ ] **ap-south-2 (Hyderabad) is an opt-in region**: enable it in Billing -> Account -> AWS Regions,
+      then `make deploy-workers`. Until then jobs placed there fall back to `inline-fallback`.
 - [ ] `aws configure` with your IAM user, region `ap-south-1`.
 - [ ] `make deploy`. On the guided prompts, set the stack name to `pravaah` and paste
       `ElectricityMapsToken` (or leave it empty for the labelled modelled profile).
@@ -83,7 +94,7 @@ file in a PR) so everyone can see what's done.
 ## Hardening (Step 14)
 - [ ] After deploy: `python scripts/load_test.py <ApiUrl>/surface?gpu_hours=4` (200 concurrent).
       Expect 0 errors and mostly `x-cache: Hit from cloudfront`.
-- [ ] Check the CloudFront origin request policy id in `template.yaml`
+- [x] Checked: the CloudFront origin request policy id in `template.yaml`
       (`b689b0a8-...`, the managed "AllViewerExceptHostHeader"). If the deploy rejects it,
       look it up in the CloudFront console → Policies → Origin request.
 - [ ] Freeze features. Then run the definition-of-done loop three times in a row without
