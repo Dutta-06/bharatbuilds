@@ -4,7 +4,7 @@ Event:  {"region", "rows", "run_id"?}
 Return: the META#latest marker
 
 Also prints a CloudWatch Embedded Metric Format line (no extra permissions needed),
-giving RowsWritten and ModelledCarbonHours per region for the dashboard.
+giving RowsWritten, ModelledCarbonHours and forecast MAE per region for the dashboard.
 """
 
 import json
@@ -20,7 +20,11 @@ def handler(event, context):
         "_aws": {"Timestamp": int(time.time() * 1000), "CloudWatchMetrics": [{
             "Namespace": "Pravaah", "Dimensions": [["Region"]],
             "Metrics": [{"Name": "RowsWritten", "Unit": "Count"},
-                        {"Name": "ModelledCarbonHours", "Unit": "Count"}]}]},
+                        {"Name": "ModelledCarbonHours", "Unit": "Count"},
+                        {"Name": "ForecastMAEWetBulb", "Unit": "None"},
+                        {"Name": "ForecastMAECarbon", "Unit": "None"}]}]},
         "Region": event["region"], "RowsWritten": meta["hours"], "ModelledCarbonHours": modelled,
+        **({"ForecastMAEWetBulb": meta["error"]["mae_t_wb"], "ForecastMAECarbon": meta["error"]["mae_ci"]}
+           if meta.get("error") else {}),
     }))
     return meta

@@ -9,6 +9,7 @@ Step 7 starts the run state machine from here.
 
 import json
 import os
+import time
 
 import boto3
 
@@ -26,9 +27,23 @@ def start_run(job: dict) -> str | None:
     return resp["executionArn"]
 
 
+def emit_metrics(job: dict) -> None:
+    """CloudWatch Embedded Metric Format: jobs placed, and modelled litres/kg saved."""
+    saved = (job.get("preview_receipt") or {}).get("saved") or {}
+    print(json.dumps({
+        "_aws": {"Timestamp": int(time.time() * 1000), "CloudWatchMetrics": [{
+            "Namespace": "Pravaah", "Dimensions": [[]],
+            "Metrics": [{"Name": "JobsPlaced", "Unit": "Count"}, {"Name": "JobsInfeasible", "Unit": "Count"},
+                        {"Name": "LitresSaved", "Unit": "None"}, {"Name": "KgCO2Saved", "Unit": "None"}]}]},
+        "JobsPlaced": int(job["status"] == "placed"), "JobsInfeasible": int(job["status"] == "infeasible"),
+        "LitresSaved": saved.get("litres", 0.0), "KgCO2Saved": saved.get("kg_co2", 0.0),
+    }))
+
+
 @handle
 def handler(event, context):
     job = jobs.submit(json_body(event))
+    emit_metrics(job)
     execution = start_run(job)
     if execution:
         job["execution_arn"] = execution

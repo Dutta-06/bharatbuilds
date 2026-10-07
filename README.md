@@ -23,7 +23,9 @@ Environmental Hacks (Bharat Builds Tour), Heat and Water track. Plan:
 | 9 Dashboard | React + Vite + Leaflet: Submit, Queue, Surface, Job/receipt, Savings, Forecast quality |
 | 10 Trace replay | `scripts/replay.py`: naive vs Pravaah, deadline hit rate, median delay, when-vs-where, slack and weight sensitivity; shown on the Savings page with its assumptions |
 | 4 Forecast models | Gradient-boosted wet-bulb and carbon models judged against persistence and the provider; exported to JSON for Lambda; `predict` step in the pipeline; per-run forecast error. Training needs real history |
-| 8, 11+ | Not started (8 = deploy, needs the AWS account) |
+| 8 Deploy infra | In the template: CloudFront (5 min cache on reads), CloudWatch dashboard, 3 alarms → SNS. Deploying needs the AWS account (HUMAN-TODO) |
+| 14 Hardening | Dashboard error states, alarms, `scripts/load_test.py`, docs below. Feature freeze and the three-in-a-row check are on the team |
+| 11-13, 15-16 | Not started |
 
 Anything that needs a human (keys, AWS, internet-only runs, source checks) is in
 [`HUMAN-TODO.md`](HUMAN-TODO.md).
@@ -67,6 +69,33 @@ curl localhost:3000/jobs
 If `public.ecr.aws` is blocked: `docker pull amazon/aws-lambda-python:3.12` and
 `make api SAM_LOCAL_ARGS="--invoke-image amazon/aws-lambda-python:3.12"`.
 Data model: [`docs/data-model.md`](docs/data-model.md).
+
+## Architecture
+
+See [`docs/architecture.md`](docs/architecture.md) for the diagram.
+Hourly pipeline: Open-Meteo + Electricity Maps → `pravaah-forecast` → DynamoDB.
+Jobs: `POST /jobs` → scheduler → `pravaah-run` (Wait → run in the chosen region →
+receipt → SNS). Dashboard on Amplify, API behind CloudFront.
+
+## Deploy
+
+```bash
+aws configure                 # IAM user, region ap-south-1
+make deploy                   # guided: stack name pravaah, ElectricityMapsToken, NotificationEmail
+make deploy-workers           # the worker in all 8 regions (jobs really run where chosen)
+make forecast-now             # first forecast run
+python scripts/load_test.py "$(aws cloudformation describe-stacks --stack-name pravaah \
+  --query "Stacks[0].Outputs[?OutputKey=='ApiUrl'].OutputValue" --output text)/surface?gpu_hours=4"
+```
+
+## Add a region
+
+1. Add it to `data/regions.yaml`: id, name, `geo`, lat/lon, `cooling_type`,
+   `electricity_maps_zone`, `grid_mix`, `typical_ci_g_per_kwh`, `water_stress_score`.
+   If AWS discloses its WUE, also add the figure under `regional_wue` in
+   `model/coefficients.yaml`.
+2. Add the id to `RegionList` in `template.yaml` and `WORKER_REGIONS` in the `Makefile`.
+3. `python scripts/validate_data.py`, `python scripts/calibrate_wue.py <id>`, `make deploy deploy-workers`.
 
 ## Dashboard
 

@@ -79,3 +79,13 @@ file in a PR) so everyone can see what's done.
 - [ ] SageMaker (from the plan's service list): training runs fine locally. If you want the
       SageMaker story, run the same script as a SageMaker training job. The serving path stays
       the exported JSON in Lambda, since a 24/7 endpoint would leave the free tier.
+
+## Hardening (Step 14)
+- [ ] After deploy: `python scripts/load_test.py <ApiUrl>/surface?gpu_hours=4` (200 concurrent).
+      Expect 0 errors and mostly `x-cache: Hit from cloudfront`.
+- [ ] Check the CloudFront origin request policy id in `template.yaml`
+      (`b689b0a8-...`, the managed "AllViewerExceptHostHeader"). If the deploy rejects it,
+      look it up in the CloudFront console → Policies → Origin request.
+- [ ] Freeze features. Then run the definition-of-done loop three times in a row without
+      touching anything: submit 1 GPU-hour with a 24 h deadline → watch the placement → job
+      runs in another region → receipt with measured CPU energy.

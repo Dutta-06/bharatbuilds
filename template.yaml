@@ -286,6 +286,125 @@ Resources:
         Destinations:
           - CloudWatchLogsLogGroup: {LogGroupArn: !GetAtt StateMachineLogs.Arn}
 
+  # --- Step 8: CDN, dashboard, alarms ------------------------------------------
+
+  # Reads (/surface, /regions, /jobs/{id}/receipt) are cacheable; the API sets
+  # Cache-Control per response, and CloudFront honours it (max 5 min). Writes pass through.
+  ApiCachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Name: !Sub "${AWS::StackName}-api"
+        DefaultTTL: 0
+        MinTTL: 0
+        MaxTTL: 300
+        ParametersInCacheKeyAndForwardedToOrigin:
+          EnableAcceptEncodingGzip: true
+          EnableAcceptEncodingBrotli: true
+          HeadersConfig: {HeaderBehavior: none}
+          CookiesConfig: {CookieBehavior: none}
+          QueryStringsConfig: {QueryStringBehavior: all}
+
+  ApiDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: Pravaah API
+        PriceClass: PriceClass_200   # includes India
+        Origins:
+          - Id: api
+            DomainName: !Sub "${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+            CustomOriginConfig: {OriginProtocolPolicy: https-only}
+        DefaultCacheBehavior:
+          TargetOriginId: api
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [GET, HEAD, OPTIONS, PUT, POST, PATCH, DELETE]
+          CachedMethods: [GET, HEAD]
+          CachePolicyId: !Ref ApiCachePolicy
+          # AllViewerExceptHostHeader: forwards the body/query for POSTs, not Host
+          OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac
+
+  PipelineFailedAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: pravaah-forecast-failed
+      AlarmDescription: The hourly forecast pipeline failed or timed out
+      Namespace: AWS/States
+      MetricName: ExecutionsFailed
+      Dimensions: [{Name: StateMachineArn, Value: !Ref ForecastStateMachine}]
+      Statistic: Sum
+      Period: 3600
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref NotificationsTopic]
+
+  PipelineStaleAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: pravaah-forecast-stale
+      AlarmDescription: No successful forecast run in the last 2 hours
+      Namespace: AWS/States
+      MetricName: ExecutionsSucceeded
+      Dimensions: [{Name: StateMachineArn, Value: !Ref ForecastStateMachine}]
+      Statistic: Sum
+      Period: 7200
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: LessThanThreshold
+      TreatMissingData: breaching
+      AlarmActions: [!Ref NotificationsTopic]
+
+  RunFailedAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: pravaah-run-failed
+      AlarmDescription: A job execution failed
+      Namespace: AWS/States
+      MetricName: ExecutionsFailed
+      Dimensions: [{Name: StateMachineArn, Value: !Ref RunStateMachine}]
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref NotificationsTopic]
+
+  Dashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: pravaah
+      DashboardBody: !Sub |
+        {"widgets": [
+          {"type": "metric", "x": 0, "y": 0, "width": 12, "height": 6, "properties": {
+            "title": "Forecast pipeline runs", "region": "${AWS::Region}", "stat": "Sum", "period": 3600,
+            "metrics": [["AWS/States", "ExecutionsSucceeded", "StateMachineArn", "${ForecastStateMachine}"],
+                        [".", "ExecutionsFailed", ".", "."]]}},
+          {"type": "metric", "x": 12, "y": 0, "width": 12, "height": 6, "properties": {
+            "title": "Jobs placed and run", "region": "${AWS::Region}", "stat": "Sum", "period": 3600,
+            "metrics": [["Pravaah", "JobsPlaced"], [".", "JobsInfeasible"],
+                        ["AWS/States", "ExecutionsSucceeded", "StateMachineArn", "${RunStateMachine}"],
+                        [".", "ExecutionsFailed", ".", "."]]}},
+          {"type": "metric", "x": 0, "y": 6, "width": 12, "height": 6, "properties": {
+            "title": "Modelled savings (sum per hour)", "region": "${AWS::Region}", "stat": "Sum", "period": 3600,
+            "metrics": [["Pravaah", "LitresSaved"], [".", "KgCO2Saved"]]}},
+          {"type": "metric", "x": 12, "y": 6, "width": 12, "height": 6, "properties": {
+            "title": "Forecast error, wet-bulb (°C, nowcast proxy)", "region": "${AWS::Region}", "stat": "Average", "period": 3600,
+            "metrics": [["Pravaah", "ForecastMAEWetBulb", "Region", "ap-south-1"], ["...", "ap-southeast-1"],
+                        ["...", "eu-north-1"], ["...", "us-east-1"]]}},
+          {"type": "metric", "x": 0, "y": 12, "width": 12, "height": 6, "properties": {
+            "title": "API latency (ms)", "region": "${AWS::Region}", "stat": "p90", "period": 300,
+            "metrics": [["AWS/ApiGateway", "Latency", "ApiId", "${ServerlessHttpApi}"]]}},
+          {"type": "metric", "x": 12, "y": 12, "width": 12, "height": 6, "properties": {
+            "title": "Lambda errors", "region": "${AWS::Region}", "stat": "Sum", "period": 300,
+            "metrics": [["AWS/Lambda", "Errors", "FunctionName", "${FetchForecastFunction}"],
+                        ["...", "${StoreForecastFunction}"], ["...", "${SubmitJobFunction}"],
+                        ["...", "${GetSurfaceFunction}"], ["...", "${ExecutorFunction}"]]}}
+        ]}
+
   HealthFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -298,7 +417,12 @@ Resources:
 
 Outputs:
   ApiUrl:
+    Description: Use this (CloudFront) as the dashboard's VITE_API_URL
+    Value: !Sub "https://${ApiDistribution.DomainName}"
+  ApiOriginUrl:
     Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+  DashboardUrl:
+    Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=pravaah"
   TableName:
     Value: !Ref MainTable
   BucketName:

@@ -117,3 +117,11 @@ def test_deadline_iso_parsing():
     now = NOW
     j = jobs.parse({"gpu_hours": 1, "deadline": "2026-10-10T20:00+05:30"}, now)
     assert j.deadline == NOW + timedelta(hours=8, minutes=30)
+
+
+def test_submit_emits_emf_metrics(seeded, capsys):
+    import json as _json
+    load_handler("submit_job")(http(body={"gpu_hours": 2, "deadline_h": 12}), None)
+    line = _json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    assert line["JobsPlaced"] == 1 and line["LitresSaved"] > 0
+    assert line["_aws"]["CloudWatchMetrics"][0]["Namespace"] == "Pravaah"
