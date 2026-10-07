@@ -89,3 +89,11 @@ file in a PR) so everyone can see what's done.
 - [ ] Freeze features. Then run the definition-of-done loop three times in a row without
       touching anything: submit 1 GPU-hour with a 24 h deadline → watch the placement → job
       runs in another region → receipt with measured CPU energy.
+
+## Video and blog (Steps 15-16)
+- [ ] Record from `docs/video-script.md` once the stack is deployed and the replay has been
+      rerun on real data. Replace every [bracket].
+- [ ] Finish `docs/blog-draft.md` with real numbers and post it on Builder Center.
+- [ ] Submission form: repo, deployed URL, video, blog, track = Heat and Water, services used
+      (the template's real list: Lambda, API Gateway, Step Functions, EventBridge, DynamoDB,
+      S3, SNS, CloudFront, CloudWatch, Amplify; SageMaker only if you ran training there).
