@@ -67,3 +67,15 @@ file in a PR) so everyone can see what's done.
 - [ ] Note for the blog: in the synthetic run, shifting time alone saves ~0% water (hot regions
       sit on the cooling-tower plateau all day, cool ones barely evaporate) but ~8% CO2. Moving
       region drives most of the savings. Check whether real hourly weather changes this.
+
+## Forecast models (Step 4)
+- [ ] After a few days of the deployed pipeline (carbon history builds up), run
+      `python scripts/train_forecasts.py --days 60`. It writes `forecasting/models/*.json`
+      only for models that beat both persistence and the provider on the last 7 days, plus
+      `metrics.json` with every verdict. Commit them and redeploy; `predict` picks them up.
+- [ ] For the video and blog, quote `forecasting/models/metrics.json` honestly, including
+      regions where the model was **not** used ("forecast models that didn't beat persistence
+      at first" is one of the plan's blog topics).
+- [ ] SageMaker (from the plan's service list): training runs fine locally. If you want the
+      SageMaker story, run the same script as a SageMaker training job. The serving path stays
+      the exported JSON in Lambda, since a 24/7 endpoint would leave the free tier.

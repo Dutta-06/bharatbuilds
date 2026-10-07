@@ -77,7 +77,10 @@ def handler(event, context):
             if best is None or c < best["cost"]:
                 best = {"region": rid, "hour": h, "cost": round(c, 4)}
         r = known[rid]
+        latest = forecasts.latest_meta(rid) or {}
         out_regions.append({"id": rid, "name": r.name, "lat": r.lat, "lon": r.lon, "geo": r.geo,
+                            "forecast_error": latest.get("error"), "run_id": latest.get("run_id"),
+                            "t_wb_sources": latest.get("t_wb_sources", []),
                             "weather_sources": sorted({x.get("weather_source") for x in meta.values()}),
                             "ci_sources": sorted({x.get("ci_source") for x in meta.values()}),
                             "cells": cells})

@@ -110,6 +110,14 @@ Resources:
       Policies:
         - S3WritePolicy: {BucketName: !Ref DataBucket}
 
+  PredictFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/predict/
+      Handler: app.handler
+      Policies:
+        - DynamoDBReadPolicy: {TableName: !Ref MainTable}
+
   StoreForecastFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -241,10 +249,12 @@ Resources:
       DefinitionSubstitutions:
         FetchForecastArn: !GetAtt FetchForecastFunction.Arn
         StoreForecastArn: !GetAtt StoreForecastFunction.Arn
+        PredictArn: !GetAtt PredictFunction.Arn
         RegionList: '["ap-south-1","ap-south-2","ap-southeast-1","eu-north-1","eu-west-1","eu-central-1","us-east-1","us-west-2"]'
       Policies:
         - LambdaInvokePolicy: {FunctionName: !Ref FetchForecastFunction}
         - LambdaInvokePolicy: {FunctionName: !Ref StoreForecastFunction}
+        - LambdaInvokePolicy: {FunctionName: !Ref PredictFunction}
         - CloudWatchLogsFullAccess
       Logging:
         Level: ERROR

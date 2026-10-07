@@ -37,6 +37,7 @@ class Conditions:
     ci_g_per_kwh: float             # carbon intensity of consumed electricity
     p_hpa: float = SEA_LEVEL_HPA    # surface pressure
     grid_mix: dict | None = None    # power breakdown for this hour; falls back to region's
+    t_wb: float | None = None       # model-corrected wet-bulb (Step 4); computed from t_db/rh/p if None
 
 
 @dataclass(frozen=True)
@@ -84,7 +85,7 @@ def footprint(region: Region, cond: Conditions, it_kwh: float, measured: bool = 
     if not mix:
         raise ValueError(f"no grid mix for {region.id}; pass Conditions.grid_mix")
 
-    t_wb = wet_bulb(cond.t_db, cond.rh, cond.p_hpa)
+    t_wb = cond.t_wb if cond.t_wb is not None else wet_bulb(cond.t_db, cond.rh, cond.p_hpa)
     site = wue_site(t_wb, cond.t_db, region.cooling_type, region.wue_scale)
     grid = wue_grid(mix)
     facility_kwh = it_kwh * region.pue

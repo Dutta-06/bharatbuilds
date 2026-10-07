@@ -34,7 +34,7 @@ dashboard-dev:
 layer:
 	rm -rf build/layer
 	mkdir -p $(LAYER)/data
-	cp -r model scheduler sources backend $(LAYER)/
+	cp -r model scheduler sources backend forecasting $(LAYER)/
 	cp data/regions.yaml $(LAYER)/data/
 	cp functions/worker/app.py $(LAYER)/worker_inline.py
 	$(PYTHON) -m pip install --quiet --target $(LAYER) --platform manylinux2014_x86_64 \

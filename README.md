@@ -22,7 +22,8 @@ Environmental Hacks (Bharat Builds Tour), Heat and Water track. Plan:
 | 7 Executor | `pravaah-run` state machine (Wait, cross-region worker, receipt, SNS), verified in Step Functions Local |
 | 9 Dashboard | React + Vite + Leaflet: Submit, Queue, Surface, Job/receipt, Savings, Forecast quality |
 | 10 Trace replay | `scripts/replay.py`: naive vs Pravaah, deadline hit rate, median delay, when-vs-where, slack and weight sensitivity; shown on the Savings page with its assumptions |
-| 4, 8, 11+ | Not started (8 = deploy, needs the AWS account) |
+| 4 Forecast models | Gradient-boosted wet-bulb and carbon models judged against persistence and the provider; exported to JSON for Lambda; `predict` step in the pipeline; per-run forecast error. Training needs real history |
+| 8, 11+ | Not started (8 = deploy, needs the AWS account) |
 
 Anything that needs a human (keys, AWS, internet-only runs, source checks) is in
 [`HUMAN-TODO.md`](HUMAN-TODO.md).
@@ -43,6 +44,7 @@ python -m model --region eu-north-1 --hour 2026-10-10T02:00 --gpu-hours 4 --temp
 python scripts/calibrate_wue.py           # scale site-WUE curves to AWS disclosures (needs internet)
 python notebooks/wue_validation.py        # uncalibrated curves vs published WUE (needs internet)
 python scripts/replay.py                  # trace replay -> dashboard/public/replay.json
+python scripts/train_forecasts.py         # Step 4 models (needs internet + history)
 ```
 
 ## Backend on a laptop
@@ -89,6 +91,7 @@ scheduler/            cost surface, greedy placement, trace loader
 sources/              Open-Meteo, Electricity Maps, modelled carbon fallback, synthetic weather
 backend/              DynamoDB access, forecasts store, jobs, HTTP helpers
 functions/            one folder per Lambda
+forecasting/          Step 4 features, training/judging, JSON tree export, serving
 statemachines/        pravaah-forecast and pravaah-run (ASL)
 dashboard/            React + Vite + Leaflet front end
 data/regions.yaml     candidate AWS regions

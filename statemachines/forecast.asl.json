@@ -35,8 +35,14 @@
             "Next": "Predict"
           },
           "Predict": {
-            "Type": "Pass",
-            "Comment": "Step 4 replaces this with the wet-bulb and carbon forecast models. Until a model beats the raw provider forecast, the provider forecast is used.",
+            "Type": "Task",
+            "Comment": "Step 4 models. A model only changes values if it beat persistence and the provider on held-out days; otherwise rows pass through. Any error falls back to the provider rows.",
+            "Resource": "arn:aws:states:::lambda:invoke",
+            "Parameters": {"FunctionName": "${PredictArn}", "Payload": {"region.$": "$.region", "rows.$": "$.fetched.rows"}},
+            "ResultSelector": {"rows.$": "$.Payload.rows"},
+            "ResultPath": "$.fetched",
+            "Retry": [{"ErrorEquals": ["Lambda.ServiceException", "Lambda.TooManyRequestsException"], "IntervalSeconds": 2, "MaxAttempts": 2}],
+            "Catch": [{"ErrorEquals": ["States.ALL"], "ResultPath": "$.predict_error", "Next": "Store"}],
             "Next": "Store"
           },
           "Store": {
