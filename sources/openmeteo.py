@@ -56,3 +56,40 @@ def last_full_year(today: datetime | None = None) -> tuple[datetime, datetime]:
     today = today or datetime.now(timezone.utc).replace(tzinfo=None)
     end = today - timedelta(days=7)  # archive lags about 5 days
     return end - timedelta(days=364), end
+
+
+def forecast(lat: float, lon: float, hours: int = 48) -> list[tuple[str, float, float, float]]:
+    """Next `hours` hourly (UTC time, T, RH, P), starting at the current UTC hour."""
+    raw = _get(FORECAST_URL, {
+        "latitude": lat, "longitude": lon, "hourly": ",".join(VARS), "timezone": "UTC",
+        "forecast_days": max(2, (hours + 47) // 24),
+    })
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:00")
+    h = raw["hourly"]
+    rows = [
+        (t, temp, rh, p)
+        for t, temp, rh, p in zip(h["time"], h["temperature_2m"], h["relative_humidity_2m"], h["surface_pressure"])
+        if t >= now and None not in (temp, rh, p)
+    ]
+    return rows[:hours]
+
+
+def recent(lat: float, lon: float, days: int) -> list[tuple[str, float, float, float]]:
+    """Hourly (UTC time, T, RH, P) for the last `days` days up to the current hour.
+
+    Uses the forecast endpoint's past_days (max 92), which has no archive lag, so it
+    overlaps with the last-24 h carbon history the Electricity Maps free tier gives.
+    """
+    if not 1 <= days <= 92:
+        raise ValueError("days must be 1-92 (Open-Meteo past_days limit); use history() for older data")
+    raw = _get(FORECAST_URL, {
+        "latitude": lat, "longitude": lon, "hourly": ",".join(VARS), "timezone": "UTC",
+        "past_days": days, "forecast_days": 1,
+    }, timeout=60.0)
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:00")
+    h = raw["hourly"]
+    return [
+        (t, temp, rh, p)
+        for t, temp, rh, p in zip(h["time"], h["temperature_2m"], h["relative_humidity_2m"], h["surface_pressure"])
+        if t <= now and None not in (temp, rh, p)
+    ]

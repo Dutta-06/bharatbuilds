@@ -21,7 +21,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path.cwd() if (Path.cwd() / "model").exists() else Path(__file__).resolve().parent.parent))
 
-from model import openmeteo, regions
+from model import regions
+from sources import openmeteo
 from model.water import wue_site_physics
 from model.wetbulb import wet_bulb
 
