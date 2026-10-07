@@ -1,12 +1,12 @@
 [project]
-name = "chhaanv"
+name = "pravaah"
 version = "0.1.0"
-description = "Heat and water risk layer for Indian cities"
+description = "Water- and carbon-aware scheduling for AI workloads"
 requires-python = ">=3.12"
-dependencies = []  # engine is stdlib-only so it drops straight into Lambda
+dependencies = ["pyyaml>=6"]
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "jsonschema>=4.18"]
+dev = ["pytest>=8", "jsonschema>=4.18"]  # see requirements-dev.txt
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -3,8 +3,10 @@ __pycache__/
 .pytest_cache/
 .venv/
 .aws-sam/
+build/
 samconfig.toml
 node_modules/
 dist/
 .env
 .DS_Store
+.ipynb_checkpoints/

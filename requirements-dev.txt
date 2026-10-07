@@ -1,0 +1,5 @@
+# Tests and local tooling. CI installs this file, so add new test dependencies here
+# (not in .github/workflows/ci.yml).
+pytest>=8
+jsonschema>=4.18
+pyyaml>=6

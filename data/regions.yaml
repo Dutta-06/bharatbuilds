@@ -1,0 +1,101 @@
+# AWS regions Pravaah can place jobs in.
+#
+# Step 1 needs: location (for weather), cooling type, and which disclosed WUE to
+# calibrate against. Step 2 fills in the rest from real data:
+#   - electricity_maps_zone: confirm each against the Electricity Maps zone list
+#   - grid_mix / typical_ci_g_per_kwh: PLACEHOLDERS (rough annual shares and
+#     intensities from memory) so the CLI runs before the pipeline exists.
+#     Replace with Electricity Maps power-breakdown history.
+#   - water_stress_score: WRI Aqueduct baseline water stress (0-5) for the site's
+#     basin; null means "not looked up yet" and gives a multiplier of 1.0.
+#   - wue_scale: written by scripts/calibrate_wue.py from a year of weather history.
+#
+# Coordinates are the metro area the region is named after, not facility sites
+# (AWS does not publish those).
+#
+# Cooling types: AWS describes direct evaporative ("adiabatic") cooling for most
+# regions; in hot humid climates where that cannot work (wet-bulb near setpoint
+# all year) we assume chilled water with cooling towers.
+
+regions:
+  - id: ap-south-1
+    name: Asia Pacific (Mumbai)
+    lat: 19.08
+    lon: 72.88
+    cooling_type: tower
+    electricity_maps_zone: IN-WE
+    disclosed_wue_key: asia-pacific-aggregate   # no Mumbai-specific figure
+    water_stress_score: null
+    grid_mix: {placeholder: true, shares: {coal: 0.72, gas: 0.03, hydro: 0.08, nuclear: 0.03, solar: 0.08, wind: 0.05, biomass: 0.01}}
+    typical_ci_g_per_kwh: 680            # placeholder
+
+  - id: ap-south-2
+    name: Asia Pacific (Hyderabad)
+    lat: 17.39
+    lon: 78.49
+    cooling_type: tower
+    electricity_maps_zone: IN-SO
+    disclosed_wue_key: asia-pacific-aggregate
+    water_stress_score: null
+    grid_mix: {placeholder: true, shares: {coal: 0.62, gas: 0.02, hydro: 0.08, nuclear: 0.04, solar: 0.13, wind: 0.10, biomass: 0.01}}
+    typical_ci_g_per_kwh: 600            # placeholder
+
+  - id: ap-southeast-1
+    name: Asia Pacific (Singapore)
+    lat: 1.35
+    lon: 103.82
+    cooling_type: tower
+    electricity_maps_zone: SG
+    water_stress_score: null
+    grid_mix: {placeholder: true, shares: {gas: 0.94, oil: 0.01, solar: 0.03, biomass: 0.02}}
+    typical_ci_g_per_kwh: 480            # placeholder
+
+  - id: eu-north-1
+    name: Europe (Stockholm)
+    lat: 59.33
+    lon: 18.07
+    cooling_type: adiabatic
+    electricity_maps_zone: SE-SE3
+    water_stress_score: null
+    grid_mix: {placeholder: true, shares: {hydro: 0.40, nuclear: 0.30, wind: 0.20, biomass: 0.07, solar: 0.02, gas: 0.01}}
+    typical_ci_g_per_kwh: 35             # placeholder
+
+  - id: eu-west-1
+    name: Europe (Ireland)
+    lat: 53.35
+    lon: -6.26
+    cooling_type: adiabatic
+    electricity_maps_zone: IE
+    water_stress_score: null
+    grid_mix: {placeholder: true, shares: {gas: 0.45, wind: 0.35, coal: 0.03, hydro: 0.02, solar: 0.03, biomass: 0.02, unknown: 0.10}}
+    typical_ci_g_per_kwh: 300            # placeholder
+
+  - id: eu-central-1
+    name: Europe (Frankfurt)
+    lat: 50.11
+    lon: 8.68
+    cooling_type: adiabatic
+    electricity_maps_zone: DE
+    water_stress_score: null
+    grid_mix: {placeholder: true, shares: {wind: 0.32, coal: 0.22, solar: 0.13, gas: 0.15, biomass: 0.08, hydro: 0.04, unknown: 0.06}}
+    typical_ci_g_per_kwh: 380            # placeholder
+
+  - id: us-east-1
+    name: US East (N. Virginia)
+    lat: 39.04
+    lon: -77.49
+    cooling_type: adiabatic
+    electricity_maps_zone: US-MIDA-PJM
+    water_stress_score: null
+    grid_mix: {placeholder: true, shares: {gas: 0.42, nuclear: 0.33, coal: 0.15, wind: 0.04, solar: 0.03, hydro: 0.02, oil: 0.01}}
+    typical_ci_g_per_kwh: 380            # placeholder
+
+  - id: us-west-2
+    name: US West (Oregon)
+    lat: 45.84
+    lon: -119.70
+    cooling_type: adiabatic
+    electricity_maps_zone: US-NW-BPAT
+    water_stress_score: null
+    grid_mix: {placeholder: true, shares: {hydro: 0.75, nuclear: 0.08, wind: 0.10, gas: 0.06, solar: 0.01}}
+    typical_ci_g_per_kwh: 100            # placeholder

@@ -6,16 +6,12 @@ on:
     branches: [main]
 
 jobs:
-  engine:
+  check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install pytest jsonschema
-      - run: python -m pytest -q
-      - name: Validate data files
-        run: python scripts/validate_data.py --quiet
-      - name: CLI smoke test (offline fixture)
-        run: python -m engine --from-file tests/engine/fixtures/delhi_may_synthetic.json --now 2026-05-26T05:00 --no-color
+      - run: pip install -r requirements-dev.txt
+      - run: make ci

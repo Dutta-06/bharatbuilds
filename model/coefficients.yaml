@@ -1,0 +1,252 @@
+# Every number the cost model uses. Nothing numeric lives in the Python code.
+#
+# Each coefficient has:
+#   value        the number
+#   unit
+#   uncertainty  relative half-width of a plausible range (0.2 = ±20%), used for receipt bands
+#   source       {title, url}
+#   note         why this value, and its limits
+#   checked      true once a team member has opened the source and confirmed the value.
+#                Everything starts false: the build environment could not open most sources,
+#                so values come from the cited documents as summarised by search results,
+#                or from standard physics references.
+#
+# `python scripts/validate_data.py` enforces this shape.
+
+physics:
+  latent_heat_vaporisation:
+    value: 2.43
+    unit: MJ/kg
+    uncertainty: 0.01
+    source:
+      title: IAPWS-IF97 steam tables (latent heat of water at ~30 °C)
+      url: http://www.iapws.org/relguide/IF97-Rev.html
+    note: Energy to evaporate 1 kg of water at cooling-tower temperatures. 1 kWh of heat evaporates 3.6/2.43 = 1.48 kg.
+    checked: false
+  air_specific_heat:
+    value: 1.006
+    unit: kJ/(kg·K)
+    uncertainty: 0.01
+    source:
+      title: Engineering ToolBox, air specific heat at constant pressure
+      url: https://www.engineeringtoolbox.com/air-specific-heat-capacity-d_705.html
+    note: Dry air near room temperature.
+    checked: false
+  psychrometer_coefficient:
+    value: 6.53e-4
+    unit: 1/K
+    uncertainty: 0.02
+    source:
+      title: WMO-No. 8, Guide to Instruments and Methods of Observation, Annex 4.B (Assmann psychrometer)
+      url: https://library.wmo.int/idurl/4/41650
+    note: "A in e = e_w(Tw) - A·(1 + 0.000944·Tw)·P·(T - Tw), for a ventilated psychrometer."
+    checked: false
+
+site_cooling:
+  # On-site water per kWh of IT energy (the WUE definition), by cooling design.
+  # These curves set the *shape* over the day; each region's level is calibrated
+  # to its disclosed annual WUE (see regional_wue below and model/water.py).
+  tower:
+    heat_rejected_per_it_kwh:
+      value: 1.2
+      unit: kWh heat / kWh IT
+      uncertainty: 0.1
+      source:
+        title: "ASHRAE TC 9.9: chiller COP ~5 adds ~0.2 kWh of compressor heat per kWh of IT heat"
+        url: https://www.ashrae.org/technical-resources/bookstore/datacom-series
+      note: Tower rejects IT heat plus chiller compressor work.
+      checked: false
+    cycles_of_concentration:
+      value: 5
+      unit: cycles
+      uncertainty: 0.4
+      source:
+        title: "Li, Yang, Islam, Ren (2023), Making AI Less 'Thirsty', arXiv:2304.03271 (water recycled 3-10 cycles)"
+        url: https://arxiv.org/abs/2304.03271
+      note: "Make-up water = evaporation × C/(C-1). 5 cycles adds 25% blowdown. Range 3-10 drives most of the uncertainty."
+      checked: false
+    free_cooling_below_wetbulb_c:
+      value: 10.0
+      unit: °C wet-bulb
+      uncertainty: 0.3
+      source:
+        title: "Lei & Masanet (2022), Climate- and technology-specific PUE and WUE estimations for U.S. data centers, Resources, Conservation & Recycling 182:106323"
+        url: https://doi.org/10.1016/j.resconrec.2022.106323
+      note: Water-side economiser covers the load with no evaporation below this wet-bulb (chilled-water supply ~18 °C minus tower approach).
+      checked: false
+    full_evaporative_above_wetbulb_c:
+      value: 18.0
+      unit: °C wet-bulb
+      uncertainty: 0.2
+      source:
+        title: "Lei & Masanet (2022), as above"
+        url: https://doi.org/10.1016/j.resconrec.2022.106323
+      note: Above this, all heat leaves by evaporation. Linear ramp in between.
+      checked: false
+  hybrid:
+    wetbulb_shift_c:
+      value: 5.0
+      unit: °C
+      uncertainty: 0.5
+      source:
+        title: "Lei & Masanet (2022), hybrid (dry + evaporative) systems"
+        url: https://doi.org/10.1016/j.resconrec.2022.106323
+      note: Hybrid coolers run dry for longer; modelled as the tower curve shifted this much warmer. Coarse.
+      checked: false
+  adiabatic:
+    supply_air_setpoint_c:
+      value: 27.0
+      unit: °C dry-bulb
+      uncertainty: 0.05
+      source:
+        title: ASHRAE Thermal Guidelines for Data Processing Environments (recommended inlet 18-27 °C)
+        url: https://www.ashrae.org/technical-resources/bookstore/datacom-series
+      note: Direct evaporative (adiabatic) air cooling only evaporates water when outside air is above this.
+      checked: false
+    server_air_delta_t_k:
+      value: 12.0
+      unit: K
+      uncertainty: 0.25
+      source:
+        title: ASHRAE TC 9.9 typical server inlet-to-outlet temperature rise
+        url: https://www.ashrae.org/technical-resources/bookstore/datacom-series
+      note: Sets airflow per kWh (≈298 kg air/kWh at 12 K), hence water to cool that air.
+      checked: false
+    bleed_factor:
+      value: 1.15
+      unit: multiplier
+      uncertainty: 0.1
+      source:
+        title: "Li et al. (2023), arXiv:2304.03271 (blowdown 20-40% of cooling water)"
+        url: https://arxiv.org/abs/2304.03271
+      note: Extra water drained from evaporative media to control minerals.
+      checked: false
+  air:
+    note: Air-cooled (dry coolers, air-cooled chillers) uses no on-site water.
+
+grid_water_factors:
+  # Water consumed (not withdrawn) per kWh generated, by source, matching
+  # Electricity Maps power-breakdown categories. US medians, recirculating
+  # (cooling tower) where relevant; applied globally, which is a stated limitation.
+  source:
+    title: "Macknick, Newmark, Heath, Hallett (2012), Operational water consumption and withdrawal factors for electricity generating technologies, Environ. Res. Lett. 7:045802 (NREL)"
+    url: https://openei.org/datasets/files/969/pub/1748-9326_7_4_045802.pdf
+  unit: L/kWh
+  uncertainty: 0.5
+  note: "Converted from gal/MWh (× 0.003785). Medians vary with plant type: one search summary gave coal 479 and gas 205 gal/MWh where we use the generic-tower medians below; check Table 1."
+  checked: false
+  values:
+    coal: 2.60        # 687 gal/MWh, generic coal, cooling tower
+    gas: 0.75         # 198 gal/MWh, combined cycle, cooling tower
+    oil: 2.60         # no separate median; treated like steam coal
+    nuclear: 2.54     # 672 gal/MWh, cooling tower
+    biomass: 2.09     # 553 gal/MWh, steam, cooling tower
+    geothermal: 1.02  # 270 gal/MWh, binary, wet cooling; flash plants use far less
+    solar: 0.004      # PV panel washing, ~1 gal/MWh
+    wind: 0.0
+    hydro: 17.0       # reservoir evaporation (Torcellini et al. 2003, NREL/TP-550-33905); see include_hydro
+    battery: 0.0
+    unknown: 0.75     # treated as gas
+  include_hydro:
+    value: false
+    note: "Reservoir evaporation is shared with irrigation, supply and flood control, and allocating it all to power is contested. Off by default, so hydro-heavy grids look water-light. This is a real modelling choice; the blog should discuss it."
+
+regional_wue:
+  # Disclosed annual on-site WUE (L/kWh IT). Used to calibrate each region's
+  # curve level. AWS 2024 figures.
+  source:
+    title: AWS WUE and PUE by region (sustainability.aboutamazon.com, CSV and regional fact sheets)
+    url: https://sustainability.aboutamazon.com/aws-wue-pue.csv
+  year: 2024
+  unit: L/kWh
+  uncertainty: 0.15
+  note: Values as reported by search summaries of the AWS fact sheets; check against the CSV.
+  checked: false
+  values:
+    us-east-1: 0.12
+    us-west-2: 0.16
+    eu-west-1: 0.03
+    eu-north-1: 0.02
+    eu-central-1: 0.01
+    ap-southeast-1: 1.68
+    asia-pacific-aggregate: 0.98   # AWS Asia Pacific excluding China; fallback for APAC regions without their own figure
+
+pue:
+  default:
+    value: 1.15
+    unit: ratio
+    uncertainty: 0.05
+    source:
+      title: AWS global PUE, Amazon 2024 Sustainability Report
+      url: https://sustainability.aboutamazon.com/reports
+    note: Facility energy / IT energy. Used where a region has no disclosed PUE.
+    checked: false
+
+gpus:
+  # Board power (TDP) from NVIDIA data sheets, in watts.
+  source:
+    title: NVIDIA data-center GPU data sheets
+    url: https://www.nvidia.com/en-us/data-center/products/
+  unit: W
+  uncertainty: 0.05
+  checked: false
+  values:
+    t4: 70
+    l4: 72
+    v100: 300
+    a100: 400       # SXM
+    h100: 700       # SXM
+
+job_energy:
+  gpu_utilisation:
+    value: 0.7
+    unit: fraction of TDP
+    uncertainty: 0.3
+    source:
+      title: "Patterson et al. (2021), Carbon Emissions and Large Neural Network Training, arXiv:2104.10350 (measured average GPU power below TDP)"
+      url: https://arxiv.org/abs/2104.10350
+    note: Average draw as a share of TDP for training. Replaced by measured kWh (CodeCarbon) after a job runs.
+    checked: false
+  server_overhead:
+    value: 1.3
+    unit: multiplier on GPU energy
+    uncertainty: 0.2
+    source:
+      title: "Luccioni, Viguier, Ligozat (2023), Estimating the Carbon Footprint of BLOOM, JMLR 24(253) (non-GPU server share)"
+      url: https://jmlr.org/papers/v24/23-0069.html
+    note: CPU, memory, networking and storage on the same host.
+    checked: false
+
+water_stress:
+  # Multiplier S(r) = 1 + score / max_score, so 1.0 (low stress) to 2.0 (extremely high).
+  max_score:
+    value: 5
+    unit: Aqueduct baseline water stress score (0-5)
+    uncertainty: 0.0
+    source:
+      title: WRI Aqueduct 4.0 baseline water stress
+      url: https://www.wri.org/data/aqueduct-global-maps-40-data
+    note: The scaling to 1-2 is a policy choice, not physics. Regions without a score get 1.0.
+    checked: false
+
+carbon_intensity:
+  uncertainty:
+    value: 0.1
+    unit: relative
+    uncertainty: 0.0
+    source:
+      title: Electricity Maps methodology (consumption-based, life-cycle carbon intensity)
+      url: https://www.electricitymaps.com/methodology
+    note: Assumed band on provider carbon intensity; forecasts carry more (measured per region in Step 4).
+    checked: false
+
+measured_energy:
+  uncertainty:
+    value: 0.15
+    unit: relative
+    uncertainty: 0.0
+    source:
+      title: "CodeCarbon methodology (falls back to TDP-based estimates without RAPL/NVML access, as on Fargate)"
+      url: https://mlco2.github.io/codecarbon/methodology.html
+    note: Band on energy after a run. Without hardware counters, CodeCarbon's figure is itself an estimate.
+    checked: false

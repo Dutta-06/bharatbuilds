@@ -1,64 +1,52 @@
-# Chhaanv
+# Pravaah
 
-Heat and waterlogging risk, hour by hour, for the people who work outdoors in
-Indian cities. Built for Environmental Hacks (Bharat Builds Tour), Heat and Water track.
+Water- and carbon-aware scheduling for AI workloads. AI jobs are flexible in
+time and place. Pravaah runs them where cooling needs the least water and the
+grid is cleanest, without missing a deadline, and issues a receipt for what was
+saved.
 
-The build plan is in [`chhaanv-build-plan.md`](chhaanv-build-plan.md), and
-[`docs/thresholds.md`](docs/thresholds.md) explains how risk is decided.
+Environmental Hacks (Bharat Builds Tour), Heat and Water track. Plan:
+[`pravaah-project.md`](pravaah-project.md). How a GPU-hour is priced:
+[`docs/cost-model.md`](docs/cost-model.md).
 
 ## Status
 
 | Step | State |
 |---|---|
-| 0 Setup | Repo, CI and SAM skeleton done. AWS account, IAM and eligibility are on the team |
-| 1 Risk engine | Done: WBGT, heat index, ISO 7243 bands, waterlogging, EN/HI windows, CLI, tests |
-| 2 City grid and data | Done except elevation (needs one run of `scripts/fill_elevation.py`) and checking hotspot/relief entries |
-| 3+ | Not started |
+| 0 Setup | Repo and CI. AWS account, Electricity Maps key and eligibility are on the team |
+| 1 Cost model | Library, coefficients with sources, CLI, tests, validation notebook. Sources still need a human check (`checked: false`), and the validation notebook needs a run with internet access |
+| 2+ | Not started |
 
-## Risk engine
-
-Pure Python 3.12, standard library only.
+## Cost model
 
 ```bash
-pip install pytest jsonschema
-python -m pytest
-python scripts/validate_data.py
+pip install -r requirements-dev.txt
+make ci                                   # tests, config validation, CLI smoke test
 
-# live forecast from Open-Meteo
-python -m engine --lat 28.7 --lon 77.1 --work heavy
-python -m engine --lat 28.7 --lon 77.1 --work heavy --lang hi
+# live weather from Open-Meteo (hours are UTC)
+python -m model --region ap-south-1 --hour 2026-10-10T09:00 --gpu-hours 4
+python -m model --region ap-south-1 --hour 2026-10-10T09:00 --gpu-hours 4 --compare
 
-# by locality name (also marks hotspot cells)
-python -m engine --city delhi --cell rohini --work heavy
+# offline
+python -m model --region eu-north-1 --hour 2026-10-10T02:00 --gpu-hours 4 --temp 8 --rh 85 --ci 35
 
-# offline, using the synthetic Delhi fixture
-python -m engine --from-file tests/engine/fixtures/delhi_may_synthetic.json --now 2026-05-26T05:00
+python scripts/calibrate_wue.py           # scale site-WUE curves to AWS disclosures (needs internet)
+python notebooks/wue_validation.py        # uncalibrated curves vs published WUE (needs internet)
 ```
-
-Options: `--work light|moderate|heavy`, `--lang en|hi`, `--hazard heat|waterlogging|all`,
-`--city`, `--cell`, `--hotspot`, `--unacclimatised`, `--json`.
-
-## Data
-
-Cities, waterlogging hotspots and relief points are JSON files in `data/`. See
-[`data/README.md`](data/README.md) for how to add a city.
 
 ## Layout
 
 ```
-engine/            risk engine (no AWS)
-  wbgt.py          WBGT estimate (Stull wet bulb + globe heat balance; BoM cross-check)
-  heat_index.py    NOAA heat index fallback
-  thresholds.py    ISO 7243 bands per work intensity
-  waterlogging.py  rain per 3 h x hotspot x elevation
-  windows.py       plain-language safe windows
-  strings/         all user-facing text (en, hi)
-  openmeteo.py     forecast client
-  risk.py          combines the above into 48-hour strips
-  grid.py          city files, nearest-cell lookup
-data/              cities, hotspots, relief points, JSON schemas
-scripts/           validate_data, assign_cells, fill_elevation, render_map
-functions/         Lambda handlers (Step 3+)
-template.yaml      SAM template
-tests/
+model/
+  coefficients.yaml   every number, with source, uncertainty and a checked flag
+  wetbulb.py          psychrometric wet-bulb (pressure-aware); Stull cross-check
+  water.py            on-site WUE curves by cooling type, calibration, grid water
+  energy.py           job energy from GPU type and hours
+  cost.py             footprint, cost, receipt (with uncertainty bands)
+  regions.py          loads data/regions.yaml
+  openmeteo.py        weather for one hour, and history
+data/regions.yaml     candidate AWS regions
+scripts/              validate_data, calibrate_wue
+notebooks/            wue_validation (percent-format notebook)
+docs/cost-model.md    one-page explainer
 ```
