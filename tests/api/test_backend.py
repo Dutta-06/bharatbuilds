@@ -125,3 +125,12 @@ def test_submit_emits_emf_metrics(seeded, capsys):
     line = _json.loads(capsys.readouterr().out.strip().splitlines()[-1])
     assert line["JobsPlaced"] == 1 and line["LitresSaved"] > 0
     assert line["_aws"]["CloudWatchMetrics"][0]["Namespace"] == "Pravaah"
+
+
+def test_submit_splittable_job_includes_plan(seeded):
+    job = body(load_handler("submit_job")(http(body={"gpu_hours": 20, "deadline_h": 40, "splittable": True,
+                                                     "max_chunks": 2}), None))
+    plan = job["split_plan"]
+    assert plan["feasible"] and len(plan["chunks"]) <= 2
+    assert sum(c["hours"] for c in plan["chunks"]) == 20
+    assert "design-only" in plan["note"]

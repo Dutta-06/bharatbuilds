@@ -9,6 +9,7 @@ from model import regions as region_config
 from model.cost import Weights, receipt
 from model.energy import gpu_tdp_w
 from scheduler.greedy import Job, schedule
+from scheduler.split import split
 
 from . import db, forecasts
 from .http import BadRequest
@@ -102,6 +103,19 @@ def submit(body: dict, now: datetime | None = None) -> dict:
         "duration_h": job.duration_h,
         "placement": placement.as_dict(submit_time=now),
     }
+    if body.get("splittable"):
+        max_chunks = _num(body, "max_chunks", 2, lo=1, hi=6, integer=True)
+        plan = split(job, surface, max_chunks=max_chunks)
+        if plan.get("feasible") and placement.baseline:
+            b = placement.baseline.footprint
+            plan["saved_vs_baseline"] = {
+                "litres_pct": round(100 * (b.litres - plan["litres"]) / b.litres, 1) if b.litres else None,
+                "kg_co2_pct": round(100 * (b.kg_co2 - plan["kg_co2"]) / b.kg_co2, 1) if b.kg_co2 else None,
+            }
+        plan["max_chunks"] = max_chunks
+        plan["note"] = ("Advisory: the executor runs the single-window placement; running a split plan "
+                        "(checkpoint, move, resume) is design-only. Checkpoint transfer is not costed.")
+        item["split_plan"] = plan
     if placement.feasible:
         item["preview_receipt"] = receipt(placement.chosen.footprint, placement.baseline.footprint) \
             if placement.baseline else None

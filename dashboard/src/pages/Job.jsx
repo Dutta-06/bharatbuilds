@@ -68,6 +68,22 @@ export default function Job({ id }) {
           </table>
         </div>
       )}
+      {job.split_plan?.feasible && (
+        <div className="card scroll">
+          <h2 style={{ marginTop: 0 }}>Split plan (up to {job.split_plan.max_chunks} chunks, {job.split_plan.solver})</h2>
+          <table>
+            <thead><tr><th>Chunk</th><th>Region</th><th>Start</th><th>End</th><th className="num">Hours</th>
+              <th className="num">Water (L)</th><th className="num">CO₂ (kg)</th></tr></thead>
+            <tbody>{job.split_plan.chunks.map((c, i) => (
+              <tr key={i}><td>{i + 1}</td><td>{c.region}</td><td className="small">{fmt.hour(c.start)}</td>
+                <td className="small">{fmt.hour(c.end)}</td><td className="num">{c.hours}</td>
+                <td className="num">{fmt.litres(c.litres)}</td><td className="num">{fmt.kg(c.kg_co2)}</td></tr>))}</tbody>
+          </table>
+          {job.split_plan.saved_vs_baseline && <p className="small">Versus running now, here:{" "}
+            <Pct v={job.split_plan.saved_vs_baseline.litres_pct} /> water, <Pct v={job.split_plan.saved_vs_baseline.kg_co2_pct} /> CO₂.</p>}
+          <p className="small muted">{job.split_plan.note}</p>
+        </div>
+      )}
       <div className="card">
         <h2 style={{ marginTop: 0 }}>Receipt</h2>
         {!receipt && <p className="muted">{job.status === "infeasible" ? "This job was not run." :

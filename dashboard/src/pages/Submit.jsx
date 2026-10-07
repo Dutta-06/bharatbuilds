@@ -8,7 +8,7 @@ export default function Submit() {
   const [regions, setRegions] = useState([]);
   const [form, setForm] = useState({
     name: "", gpu_hours: 4, gpus: 1, gpu: "a100", deadline_h: 24, submit_region: "ap-south-1",
-    water: 50, data_residency: false, allowed: [],
+    water: 50, data_residency: false, allowed: [], splittable: false, max_chunks: 2,
   });
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -24,6 +24,7 @@ export default function Submit() {
         name: form.name, gpu_hours: Number(form.gpu_hours), gpus: Number(form.gpus), gpu: form.gpu,
         deadline_h: Number(form.deadline_h), submit_region: form.submit_region,
         data_residency: form.data_residency,
+        splittable: form.splittable, max_chunks: Number(form.max_chunks),
         allowed_regions: form.allowed.length ? form.allowed : undefined,
         weights: { water: form.water / 100, carbon: 1 - form.water / 100 },
       });
@@ -58,6 +59,12 @@ export default function Submit() {
             <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <input type="checkbox" checked={form.data_residency} onChange={set("data_residency")} />
               Data must stay in the same jurisdiction as the baseline region
+            </label>
+            <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <input type="checkbox" checked={form.splittable} onChange={set("splittable")} />
+              Checkpointable: also show the best plan split into up to
+              <input type="number" min="1" max="6" value={form.max_chunks} onChange={set("max_chunks")}
+                     style={{ width: 56, display: "inline-block", margin: 0 }} aria-label="Maximum chunks" /> chunks
             </label>
           </div>
         </div>
