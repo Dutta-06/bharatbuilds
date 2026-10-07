@@ -33,11 +33,12 @@ REGIONS_SCHEMA = {
     "required": ["regions"],
     "properties": {"regions": {"type": "array", "minItems": 1, "items": {
         "type": "object",
-        "required": ["id", "name", "lat", "lon", "cooling_type", "electricity_maps_zone",
+        "required": ["id", "name", "geo", "lat", "lon", "cooling_type", "electricity_maps_zone",
                      "water_stress_score", "grid_mix"],
         "properties": {
             "id": {"type": "string", "pattern": "^[a-z]{2}(-[a-z]+)+-[0-9]$"},
             "name": {"type": "string"},
+            "geo": {"type": "string", "pattern": "^[A-Z]{2}$"},
             "lat": {"type": "number", "minimum": -90, "maximum": 90},
             "lon": {"type": "number", "minimum": -180, "maximum": 180},
             "cooling_type": {"enum": list(COOLING_TYPES)},
