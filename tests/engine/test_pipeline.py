@@ -67,3 +67,12 @@ def test_cli_offline(capsys):
     out = capsys.readouterr().out
     assert "भारी" in out
     assert "जलभराव" in out
+
+
+def test_cli_city_cell_marks_hotspot(capsys):
+    code = main(["--city", "delhi", "--cell", "zakhira", "--from-file", str(FIXTURE),
+                 "--now", "2026-05-26T05:00", "--no-color", "--hazard", "waterlogging"])
+    assert code == 0
+    out = capsys.readouterr().out
+    assert out.startswith("Zakhira")
+    assert "waterlogging hotspot" in out

@@ -1,0 +1,22 @@
+{
+  "city": "delhi",
+  "_note": "Hotspot names come from the cited reports. Coordinates were placed by hand (about ±300 m) and the source pages could not be opened from the build environment, so each entry is verified=false: open the source, confirm the name, and check the pin on a map before relying on it. cell_id is set by scripts/assign_cells.py.",
+  "sources": [
+    {"id": "lg-2022-chronic", "publisher": "Lt. Governor of Delhi (official site)", "title": "LG Shri VK Saxena inspects chronic waterlogging sites – Indraprastha-WHO, Pul Prahladpur and Minto Bridge", "url": "https://lg.delhi.gov.in/node/9193"},
+    {"id": "tribune-335-spots", "publisher": "The Tribune", "title": "Officers deployed at 335 key spots to prevent waterlogging", "url": "https://www.tribuneindia.com/news/delhi/officers-deployed-at-335-key-spots-to-prevent-waterlogging"},
+    {"id": "week-2025-06-19", "publisher": "The Week (PTI)", "title": "Delhi govt directs district magistrates to fix 71 waterlogging spots ahead of monsoon", "url": "https://www.theweek.in/wire-updates/national/2025/06/19/des66-dl-pwd-waterlogging.html"},
+    {"id": "etv-2021-seven", "publisher": "ETV Bharat", "title": "Delhi PWD identifies seven critical waterlogging points", "url": "https://www.etvbharat.com/english/state/delhi/delhi-pwd-identifies-seven-critical-waterlogging-points/na20210802220845760"},
+    {"id": "pioneer-4-underpasses", "publisher": "The Pioneer", "title": "4 waterlogging-hotspot underpasses stay open amid rain; PWD minister reviews operations", "url": "https://dailypioneer.com/news/4-waterlogging-hotspot-underpasses-stay-open-amid-rain-pwd-minister-reviews-operations"}
+  ],
+  "hotspots": [
+    {"id": "minto-bridge", "name": "Minto Bridge underpass", "name_hi": "मिंटो ब्रिज अंडरपास", "kind": "underpass", "lat": 28.633, "lon": 77.2262, "cell_id": "connaught-place", "perennial": true, "sources": ["lg-2022-chronic", "etv-2021-seven", "pioneer-4-underpasses", "tribune-335-spots"], "verified": false},
+    {"id": "pul-prahladpur", "name": "Pul Prahladpur railway underpass", "name_hi": "पुल प्रहलादपुर अंडरपास", "kind": "underpass", "lat": 28.4993, "lon": 77.2879, "cell_id": "badarpur", "perennial": true, "sources": ["lg-2022-chronic", "etv-2021-seven", "tribune-335-spots"], "verified": false},
+    {"id": "ring-road-who", "name": "Ring Road opposite WHO building, IP Estate", "name_hi": "रिंग रोड, डब्ल्यूएचओ भवन के सामने", "kind": "road", "lat": 28.627, "lon": 77.249, "cell_id": "ito", "perennial": true, "sources": ["lg-2022-chronic", "tribune-335-spots"], "verified": false},
+    {"id": "jahangirpuri-metro-road", "name": "Jahangirpuri Metro Station Road", "name_hi": "जहांगीरपुरी मेट्रो स्टेशन रोड", "kind": "road", "lat": 28.7259, "lon": 77.1626, "cell_id": "jahangirpuri", "perennial": true, "sources": ["tribune-335-spots", "week-2025-06-19"], "verified": false},
+    {"id": "zakhira-flyover", "name": "Under Zakhira flyover / underpass", "name_hi": "ज़खीरा फ्लाईओवर के नीचे", "kind": "underpass", "lat": 28.661, "lon": 77.147, "cell_id": "zakhira", "perennial": true, "sources": ["etv-2021-seven", "pioneer-4-underpasses", "tribune-335-spots"], "verified": false},
+    {"id": "loni-road-golchakkar", "name": "Loni Road Golchakkar", "name_hi": "लोनी रोड गोलचक्कर", "kind": "junction", "lat": 28.6935, "lon": 77.286, "cell_id": "yamuna-vihar", "perennial": true, "sources": ["etv-2021-seven", "tribune-335-spots"], "verified": false},
+    {"id": "karala-kanjhawla-road", "name": "Karala-Kanjhawla stretch", "name_hi": "कराला-कंझावला रोड", "kind": "stretch", "lat": 28.727, "lon": 77.03, "cell_id": "karala-kanjhawla", "perennial": true, "sources": ["tribune-335-spots", "week-2025-06-19"], "verified": false},
+    {"id": "dhaula-kuan", "name": "Dhaula Kuan underpass", "name_hi": "धौला कुआं अंडरपास", "kind": "underpass", "lat": 28.5918, "lon": 77.1615, "cell_id": "dhaula-kuan", "perennial": true, "sources": ["pioneer-4-underpasses"], "verified": false},
+    {"id": "moolchand-underpass", "name": "Moolchand underpass", "name_hi": "मूलचंद अंडरपास", "kind": "underpass", "lat": 28.565, "lon": 77.235, "cell_id": "lajpat-nagar", "perennial": true, "sources": ["pioneer-4-underpasses"], "verified": false}
+  ]
+}

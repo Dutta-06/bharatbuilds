@@ -80,8 +80,12 @@ def assess(
     city_ref_elevation_m: float | None = None,
     acclimatised: bool = True,
     now: datetime | None = None,
+    elevation_m: float | None = None,
 ) -> dict:
-    """Both hazards for one point, with strips and plain-language windows."""
+    """Both hazards for one point, with strips and plain-language windows.
+
+    ``elevation_m`` is the cell's elevation; it defaults to the forecast's.
+    """
     lead_in, hours = window_from(forecast, now)
     times = [h.time for h in hours]
     result = {"work": work, "lang": lang, "hazards": {}}
@@ -92,7 +96,7 @@ def assess(
             waterlogging_strip(
                 hours,
                 has_hotspot=has_hotspot,
-                elevation_m=forecast.elevation,
+                elevation_m=forecast.elevation if elevation_m is None else elevation_m,
                 city_ref_elevation_m=city_ref_elevation_m,
                 lead_in=lead_in,
             ),

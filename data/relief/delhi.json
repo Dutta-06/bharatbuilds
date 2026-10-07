@@ -1,0 +1,14 @@
+{
+  "city": "delhi",
+  "_note": "Seed relief points so the demo map is not empty. Locations placed by hand (about ±300 m), verified=false until someone checks them on the ground. No piyaos (public water points) yet: add real ones from a site visit; they are the most useful type.",
+  "points": [
+    {"id": "bangla-sahib", "name": "Gurudwara Bangla Sahib", "name_hi": "गुरुद्वारा बंगला साहिब", "type": "religious", "lat": 28.6264, "lon": 77.209, "cell_id": "connaught-place", "amenities": ["water", "shade", "food", "toilet"], "source": "seed", "verified": false},
+    {"id": "sis-ganj", "name": "Gurudwara Sis Ganj Sahib, Chandni Chowk", "name_hi": "गुरुद्वारा शीश गंज साहिब", "type": "religious", "lat": 28.6561, "lon": 77.2321, "cell_id": "chandni-chowk", "amenities": ["water", "shade", "food"], "source": "seed", "verified": false},
+    {"id": "central-park-cp", "name": "Central Park, Connaught Place", "name_hi": "सेंट्रल पार्क, कनॉट प्लेस", "type": "park", "lat": 28.6328, "lon": 77.2197, "cell_id": "connaught-place", "amenities": ["shade"], "source": "seed", "verified": false},
+    {"id": "lodhi-garden", "name": "Lodhi Garden", "name_hi": "लोधी गार्डन", "type": "park", "lat": 28.5931, "lon": 77.2197, "cell_id": "lodhi-colony", "amenities": ["shade"], "source": "seed", "verified": false},
+    {"id": "sunder-nursery", "name": "Sunder Nursery", "name_hi": "सुंदर नर्सरी", "type": "park", "lat": 28.5937, "lon": 77.244, "cell_id": "nizamuddin", "amenities": ["shade", "toilet"], "source": "seed", "verified": false},
+    {"id": "deer-park", "name": "Deer Park, Hauz Khas", "name_hi": "डियर पार्क, हौज़ ख़ास", "type": "park", "lat": 28.5546, "lon": 77.198, "cell_id": "hauz-khas", "amenities": ["shade"], "source": "seed", "verified": false},
+    {"id": "buddha-jayanti-park", "name": "Buddha Jayanti Park, Ridge Road", "name_hi": "बुद्ध जयंती पार्क", "type": "park", "lat": 28.623, "lon": 77.172, "cell_id": "chanakyapuri", "amenities": ["shade"], "source": "seed", "verified": false},
+    {"id": "japanese-park", "name": "Japanese Park, Rohini", "name_hi": "जापानी पार्क, रोहिणी", "type": "park", "lat": 28.714, "lon": 77.119, "cell_id": "pitampura", "amenities": ["shade"], "source": "seed", "verified": false}
+  ]
+}
