@@ -1,0 +1,15 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Pravaah worker - deploy once in every region jobs can be placed in (make deploy-workers)
+
+Resources:
+  WorkerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: pravaah-worker
+      Runtime: python3.12
+      Architectures: [x86_64]
+      CodeUri: functions/worker/
+      Handler: app.handler
+      Timeout: 660
+      MemorySize: 1769   # one full vCPU

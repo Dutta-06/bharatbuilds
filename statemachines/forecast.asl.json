@@ -1,0 +1,68 @@
+{
+  "Comment": "pravaah-forecast: every hour, for each region fetch 48 h of weather + grid, (predict), store. One failing region does not stop the others.",
+  "StartAt": "HasRegions",
+  "States": {
+    "HasRegions": {
+      "Type": "Choice",
+      "Choices": [{"Variable": "$.regions", "IsPresent": true, "Next": "ForEachRegion"}],
+      "Default": "DefaultRegions"
+    },
+    "DefaultRegions": {
+      "Type": "Pass",
+      "Result": ${RegionList},
+      "ResultPath": "$.regions",
+      "Next": "ForEachRegion"
+    },
+    "ForEachRegion": {
+      "Type": "Map",
+      "ItemsPath": "$.regions",
+      "MaxConcurrency": 4,
+      "Parameters": {
+        "region.$": "$$.Map.Item.Value",
+        "run_id.$": "$$.Execution.StartTime"
+      },
+      "Iterator": {
+        "StartAt": "Fetch",
+        "States": {
+          "Fetch": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::lambda:invoke",
+            "Parameters": {"FunctionName": "${FetchForecastArn}", "Payload": {"region.$": "$.region"}},
+            "ResultSelector": {"rows.$": "$.Payload.rows", "raw_key.$": "$.Payload.raw_key"},
+            "ResultPath": "$.fetched",
+            "Retry": [{"ErrorEquals": ["States.ALL"], "IntervalSeconds": 5, "MaxAttempts": 3, "BackoffRate": 2.0}],
+            "Catch": [{"ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "RegionFailed"}],
+            "Next": "Predict"
+          },
+          "Predict": {
+            "Type": "Pass",
+            "Comment": "Step 4 replaces this with the wet-bulb and carbon forecast models. Until a model beats the raw provider forecast, the provider forecast is used.",
+            "Next": "Store"
+          },
+          "Store": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::lambda:invoke",
+            "Parameters": {
+              "FunctionName": "${StoreForecastArn}",
+              "Payload": {"region.$": "$.region", "rows.$": "$.fetched.rows", "run_id.$": "$.run_id"}
+            },
+            "OutputPath": "$.Payload",
+            "Retry": [{"ErrorEquals": ["States.ALL"], "IntervalSeconds": 5, "MaxAttempts": 3, "BackoffRate": 2.0}],
+            "Catch": [{"ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "RegionFailed"}],
+            "End": true
+          },
+          "RegionFailed": {
+            "Type": "Pass",
+            "Parameters": {"region.$": "$.region", "failed": true, "error.$": "$.error"},
+            "End": true
+          }
+        }
+      },
+      "ResultPath": "$.results",
+      "Catch": [{"ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "PipelineFailed"}],
+      "Next": "Done"
+    },
+    "Done": {"Type": "Succeed"},
+    "PipelineFailed": {"Type": "Fail", "Error": "PipelineFailed", "Cause": "The region map failed; see the execution history and CloudWatch Logs."}
+  }
+}

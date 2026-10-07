@@ -38,3 +38,16 @@ file in a PR) so everyone can see what's done.
       (https://github.com/alibaba/clusterdata/tree/master/cluster-trace-gpu-v2020) and run
       `python scripts/sample_trace.py --alibaba <path> --n 500`. Until then, replay uses
       `data/trace.synthetic.csv` and must say so.
+
+## Deploy to AWS (Step 8)
+- [ ] `aws configure` with your IAM user, region `ap-south-1`.
+- [ ] `make deploy`. On the guided prompts, set the stack name to `pravaah` and paste
+      `ElectricityMapsToken` (or leave it empty for the labelled modelled profile).
+      Put your email in `NotificationEmail`, keep `Offline=false`, and save the
+      arguments to samconfig.toml.
+- [ ] Confirm the SNS subscription email AWS sends you.
+- [ ] `make deploy-workers` puts the worker in all 8 regions, so jobs really run in the
+      chosen region. Without it, the receipt honestly says `launched_via: inline-fallback`.
+- [ ] `make forecast-now`, then check that `curl <ApiUrl>/surface?gpu_hours=4` returns 8 regions.
+- [ ] Submit a job with `"allowed_regions": ["eu-north-1"], "max_delay_h": 0` and check that
+      the receipt shows `ran_in: eu-north-1` and `launched_via: cross-region-lambda`.

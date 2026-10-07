@@ -5,7 +5,8 @@ ENDPOINT ?= http://localhost:4566
 LOCAL_ENV := AWS_ENDPOINT_URL=$(ENDPOINT) AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test \
 	AWS_DEFAULT_REGION=ap-south-1 TABLE_NAME=pravaah-main BUCKET_NAME=pravaah-data-local
 
-.PHONY: ci test validate smoke calibrate layer build local-up local-down local-setup seed api clean
+.PHONY: ci test validate smoke calibrate layer build local-up local-down local-setup seed api clean deploy deploy-workers forecast-now
+STACK ?= pravaah
 
 ci: test validate smoke
 
@@ -28,6 +29,7 @@ layer:
 	mkdir -p $(LAYER)/data
 	cp -r model scheduler sources backend $(LAYER)/
 	cp data/regions.yaml $(LAYER)/data/
+	cp functions/worker/app.py $(LAYER)/worker_inline.py
 	$(PYTHON) -m pip install --quiet --target $(LAYER) --platform manylinux2014_x86_64 \
 		--implementation cp --python-version 3.12 --only-binary=:all: "pyyaml>=6"
 	find build/layer -name __pycache__ -prune -exec rm -rf {} +
@@ -55,3 +57,21 @@ api: build
 
 clean:
 	rm -rf build .aws-sam
+
+# --- AWS (Step 8) ---------------------------------------------------------------
+
+WORKER_REGIONS ?= ap-south-1 ap-south-2 ap-southeast-1 eu-north-1 eu-west-1 eu-central-1 us-east-1 us-west-2
+
+deploy: build
+	sam deploy --guided
+
+# Deploy the worker in every region except the main stack's (which has its own).
+deploy-workers:
+	for r in $(WORKER_REGIONS); do \
+		sam deploy --template-file worker.yaml --stack-name pravaah-worker --region $$r \
+			--resolve-s3 --capabilities CAPABILITY_IAM --no-confirm-changeset --no-fail-on-empty-changeset; \
+	done
+
+forecast-now:
+	aws stepfunctions start-execution --state-machine-arn $$(aws cloudformation describe-stacks \
+		--stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='ForecastStateMachineArn'].OutputValue" --output text)

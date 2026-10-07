@@ -16,12 +16,23 @@ Parameters:
     AllowedValues: ["true", "false"]
     Default: "false"
     Description: "true = synthetic weather (no Open-Meteo calls). For demos without internet only."
+  NotificationEmail:
+    Type: String
+    Default: ""
+    Description: Email to subscribe to job notifications (confirm the email AWS sends). Empty = none.
+  DemoRunSeconds:
+    Type: Number
+    Default: 20
+    Description: How long the proxy workload runs in the chosen region.
   TableReadCapacity:
     Type: Number
     Default: 15
   TableWriteCapacity:
     Type: Number
     Default: 20
+
+Conditions:
+  HasEmail: !Not [!Equals [!Ref NotificationEmail, ""]]
 
 Globals:
   Function:
@@ -135,8 +146,12 @@ Resources:
     Properties:
       CodeUri: functions/submit_job/
       Handler: app.handler
+      Environment:
+        Variables:
+          RUN_STATE_MACHINE_ARN: !Ref RunStateMachine
       Policies:
         - DynamoDBCrudPolicy: {TableName: !Ref MainTable}
+        - StepFunctionsExecutionPolicy: {StateMachineName: !GetAtt RunStateMachine.Name}
       Events:
         Submit:
           Type: HttpApi
@@ -169,6 +184,98 @@ Resources:
           Type: HttpApi
           Properties: {Path: "/jobs/{id}/receipt", Method: get}
 
+  ExecutorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/executor/
+      Handler: app.handler
+      Timeout: 900
+      Environment:
+        Variables:
+          WORKER_FUNCTION_NAME: pravaah-worker
+          DEMO_RUN_SECONDS: !Ref DemoRunSeconds
+      Policies:
+        - DynamoDBCrudPolicy: {TableName: !Ref MainTable}
+        - S3WritePolicy: {BucketName: !Ref DataBucket}
+        - Statement:
+            - Effect: Allow
+              Action: lambda:InvokeFunction
+              # the worker in any region (cross-region launch)
+              Resource: !Sub "arn:aws:lambda:*:${AWS::AccountId}:function:pravaah-worker"
+
+  # The workload itself. Deployed here and, via worker.yaml, in every region jobs can run in.
+  WorkerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: pravaah-worker
+      CodeUri: functions/worker/
+      Handler: app.handler
+      Timeout: 660
+      MemorySize: 1769   # one full vCPU
+      Layers: []
+
+  NotificationsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: pravaah-notifications
+
+  NotificationsEmail:
+    Type: AWS::SNS::Subscription
+    Condition: HasEmail
+    Properties:
+      TopicArn: !Ref NotificationsTopic
+      Protocol: email
+      Endpoint: !Ref NotificationEmail
+
+  StateMachineLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /pravaah/statemachines
+      RetentionInDays: 14
+
+  ForecastStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Name: pravaah-forecast
+      DefinitionUri: statemachines/forecast.asl.json
+      DefinitionSubstitutions:
+        FetchForecastArn: !GetAtt FetchForecastFunction.Arn
+        StoreForecastArn: !GetAtt StoreForecastFunction.Arn
+        RegionList: '["ap-south-1","ap-south-2","ap-southeast-1","eu-north-1","eu-west-1","eu-central-1","us-east-1","us-west-2"]'
+      Policies:
+        - LambdaInvokePolicy: {FunctionName: !Ref FetchForecastFunction}
+        - LambdaInvokePolicy: {FunctionName: !Ref StoreForecastFunction}
+        - CloudWatchLogsFullAccess
+      Logging:
+        Level: ERROR
+        IncludeExecutionData: false
+        Destinations:
+          - CloudWatchLogsLogGroup: {LogGroupArn: !GetAtt StateMachineLogs.Arn}
+      Events:
+        Hourly:
+          Type: Schedule
+          Properties:
+            Schedule: cron(5 * * * ? *)   # 5 past every hour, after providers update
+            Description: Refresh the 48 h forecast grid
+
+  RunStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Name: pravaah-run
+      DefinitionUri: statemachines/run.asl.json
+      DefinitionSubstitutions:
+        ExecutorArn: !GetAtt ExecutorFunction.Arn
+        TopicArn: !Ref NotificationsTopic
+      Policies:
+        - LambdaInvokePolicy: {FunctionName: !Ref ExecutorFunction}
+        - SNSPublishMessagePolicy: {TopicName: !GetAtt NotificationsTopic.TopicName}
+        - CloudWatchLogsFullAccess
+      Logging:
+        Level: ERROR
+        IncludeExecutionData: false
+        Destinations:
+          - CloudWatchLogsLogGroup: {LogGroupArn: !GetAtt StateMachineLogs.Arn}
+
   HealthFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -186,3 +293,9 @@ Outputs:
     Value: !Ref MainTable
   BucketName:
     Value: !Ref DataBucket
+  ForecastStateMachineArn:
+    Value: !Ref ForecastStateMachine
+  RunStateMachineArn:
+    Value: !Ref RunStateMachine
+  NotificationsTopicArn:
+    Value: !Ref NotificationsTopic
