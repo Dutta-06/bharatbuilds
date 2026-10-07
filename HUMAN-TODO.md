@@ -108,3 +108,17 @@ file in a PR) so everyone can see what's done.
 - [ ] Plan check: sign in, set team `ml` to 100% water, submit a job with `"team": "ml"`, and
       confirm the job's `request.weights` shows water 1.0.
 - [ ] `/price` has throttling but no API keys (HTTP APIs don't support them; see docs/api.md).
+
+## Assistant (Step 13)
+- [ ] Choose how the assistant reaches Claude Opus 5.5:
+      - **Anthropic API:** deploy with `AssistantProvider=anthropic` and `AnthropicApiKey=<key>`.
+        For anything beyond the hackathon, move the key to Secrets Manager.
+      - **Amazon Bedrock:** enable Claude Opus 5.5 model access in the Bedrock console, then deploy
+        with `AssistantProvider=bedrock` and `BedrockModelId` set to the model or inference-profile
+        id the console shows for your region.
+- [ ] Run the plan's test (costs model tokens: 20 short agent turns against a local stub API, so
+      no real jobs are created): `pip install -r requirements-assistant.txt`, then
+      `ANTHROPIC_API_KEY=... make assistant-eval`. The plan requires **16 of 20**. Failures print
+      the reason and the reply. Tune `SYSTEM_PROMPT` in `assistant/agent.py`, not the test set.
+- [ ] Plan check: "run this 8-GPU-hour job by Friday with least water" on the Assistant page
+      submits a job with weights water 1 / carbon 0 and a Friday deadline.

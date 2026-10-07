@@ -5,7 +5,7 @@ ENDPOINT ?= http://localhost:4566
 LOCAL_ENV := AWS_ENDPOINT_URL=$(ENDPOINT) AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test \
 	AWS_DEFAULT_REGION=ap-south-1 TABLE_NAME=pravaah-main BUCKET_NAME=pravaah-data-local
 
-.PHONY: ci test validate smoke calibrate dashboard-build dashboard-dev layer build local-up local-down local-setup seed api clean deploy deploy-workers forecast-now
+.PHONY: ci test validate smoke calibrate dashboard-build dashboard-dev assistant-layer assistant-eval layer build local-up local-down local-setup seed api clean deploy deploy-workers forecast-now
 STACK ?= pravaah
 
 ci: test validate smoke dashboard-build
@@ -34,14 +34,21 @@ dashboard-dev:
 layer:
 	rm -rf build/layer
 	mkdir -p $(LAYER)/data
-	cp -r model scheduler sources backend forecasting $(LAYER)/
+	cp -r model scheduler sources backend forecasting assistant $(LAYER)/
 	cp data/regions.yaml $(LAYER)/data/
 	cp functions/worker/app.py $(LAYER)/worker_inline.py
 	$(PYTHON) -m pip install --quiet --target $(LAYER) --platform manylinux2014_x86_64 \
 		--implementation cp --python-version 3.12 --only-binary=:all: "pyyaml>=6"
 	find build/layer -name __pycache__ -prune -exec rm -rf {} +
 
-build: layer
+# Strands + Anthropic SDK for the chat function (kept out of the core layer: size)
+assistant-layer:
+	rm -rf build/assistant-layer
+	mkdir -p build/assistant-layer/python
+	$(PYTHON) -m pip install --quiet --target build/assistant-layer/python --platform manylinux2014_x86_64 \
+		--implementation cp --python-version 3.12 --only-binary=:all: -r requirements-assistant.txt
+
+build: layer assistant-layer
 	sam build
 
 local-up:
@@ -82,3 +89,7 @@ deploy-workers:
 forecast-now:
 	aws stepfunctions start-execution --state-machine-arn $$(aws cloudformation describe-stacks \
 		--stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='ForecastStateMachineArn'].OutputValue" --output text)
+
+# Step 13: grade the assistant on evals/assistant.yaml (costs model tokens; needs a key)
+assistant-eval:
+	$(PYTHON) -m assistant.eval

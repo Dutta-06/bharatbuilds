@@ -24,6 +24,19 @@ Parameters:
     Type: Number
     Default: 20
     Description: How long the proxy workload runs in the chosen region.
+  AssistantProvider:
+    Type: String
+    AllowedValues: [anthropic, bedrock]
+    Default: anthropic
+  AnthropicApiKey:
+    Type: String
+    NoEcho: true
+    Default: ""
+    Description: For the assistant when AssistantProvider=anthropic (consider Secrets Manager for production)
+  BedrockModelId:
+    Type: String
+    Default: ""
+    Description: For AssistantProvider=bedrock, the Claude Opus 5.5 model or inference-profile id enabled in this account
   TableReadCapacity:
     Type: Number
     Default: 15
@@ -115,6 +128,37 @@ Resources:
         Write:
           Type: HttpApi
           Properties: {ApiId: !Ref PravaahApi, Path: "/policies/{team}", Method: put, Auth: {Authorizer: CognitoAuthorizer}}
+
+  AssistantLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: pravaah-assistant-deps
+      Description: Strands Agents SDK + Anthropic SDK (make assistant-layer)
+      ContentUri: build/assistant-layer/
+      CompatibleRuntimes: [python3.12]
+
+  ChatFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/chat/
+      Handler: app.handler
+      Timeout: 120
+      MemorySize: 1024
+      Layers: [!Ref AssistantLayer]
+      Environment:
+        Variables:
+          ASSISTANT_PROVIDER: !Ref AssistantProvider
+          ANTHROPIC_API_KEY: !Ref AnthropicApiKey
+          BEDROCK_MODEL_ID: !Ref BedrockModelId
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: [bedrock:InvokeModel, bedrock:InvokeModelWithResponseStream]
+              Resource: "*"
+      Events:
+        Chat:
+          Type: HttpApi
+          Properties: {ApiId: !Ref PravaahApi, Path: /chat, Method: post}
 
   GetPriceFunction:
     Type: AWS::Serverless::Function
