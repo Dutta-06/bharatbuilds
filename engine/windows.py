@@ -87,6 +87,8 @@ def summarize(
 
     t = strings[lang][hazard]
     work_word = strings[lang]["work"][work]
+    # Hindi adjectives inflect before a postposition: "हल्का काम" but "हल्के काम के लिए"
+    words = {"work": work_word, "work_obl": strings[lang]["work_oblique"][work]}
     now = times[0]
     segs = segments(levels, times)
     fmt = lambda dt: format_time(dt, now, lang)  # noqa: E731
@@ -99,25 +101,25 @@ def summarize(
     first = segs[0]
     sentences = []
     if len(segs) == 1:
-        sentences.append(t[f"now_{first.level}_all"].format(work=work_word))
+        sentences.append(t[f"now_{first.level}_all"].format(**words))
     else:
-        sentences.append(t[f"now_{first.level}_until"].format(work=work_word, time=fmt(first.end)))
+        sentences.append(t[f"now_{first.level}_until"].format(**words, time=fmt(first.end)))
 
         if first.level != RED:
             red = next((s for s in segs[1:] if s.level == RED), None)
             if red:
                 sentences.append(
-                    t["next_red"].format(work=work_word, **fmt_range(red))
+                    t["next_red"].format(**words, **fmt_range(red))
                 )
 
     if first.level != GREEN:
         safe = next((s for s in segs[1:] if s.level == GREEN), None)
         if safe:
             sentences.append(
-                t["next_safe"].format(work=work_word, **fmt_range(safe))
+                t["next_safe"].format(**words, **fmt_range(safe))
             )
         else:
-            sentences.append(t["no_safe"].format(work=work_word))
+            sentences.append(t["no_safe"].format(**words))
 
     return {
         "now": first.level,

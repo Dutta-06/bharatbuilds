@@ -1,0 +1,18 @@
+# LocalStack for running the backend on a laptop. `make local-up`.
+services:
+  localstack:
+    image: localstack/localstack:4
+    ports:
+      - "4566:4566"
+    environment:
+      SERVICES: dynamodb,s3,sqs,stepfunctions,events
+      AWS_DEFAULT_REGION: ap-south-1
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:4566/_localstack/health"]
+      interval: 3s
+      retries: 20
+    networks: [chhaanv]
+
+networks:
+  chhaanv:
+    name: chhaanv

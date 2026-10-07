@@ -85,4 +85,12 @@ def test_every_language_has_every_key():
         for hazard in ("heat", "waterlogging"):
             assert set(s[lang][hazard]) == set(reference[hazard]), lang
         assert set(s[lang]["work"]) == set(reference["work"])
+        assert set(s[lang]["work_oblique"]) == set(reference["work"])
         assert set(s[lang]["level"]) == set(reference["level"])
+
+
+def test_hindi_oblique_adjective():
+    levels, times = strip("G" * 5 + "R" * 43)
+    out = summarize(levels, times, work="light", lang="hi")
+    assert out["sentences"][0] == "अभी हल्के काम के लिए सुरक्षित है, सुबह 11 बजे तक।"
+    assert out["sentences"][1] == "सुबह 11 बजे से परसों सुबह 6 बजे तक हल्का काम न करें।"
