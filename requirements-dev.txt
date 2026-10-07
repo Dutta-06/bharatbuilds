@@ -3,3 +3,5 @@
 pytest>=8
 jsonschema>=4.18
 pyyaml>=6
+boto3>=1.34
+moto[dynamodb,s3,stepfunctions]>=5

@@ -11,6 +11,7 @@ region. Candidate starts are every whole hour from the submit hour while
 Each candidate is costed with model.cost.cost, normalised to the baseline
 (run now, in the submit region), so cost 1.0 = "no better than now".
 The cheapest wins; ties go to the earliest start, then to the submit region.
+Alternatives are the best slot in each other region (up to three).
 """
 
 from __future__ import annotations
@@ -188,7 +189,13 @@ def schedule(job: Job, surface: Surface, top_k: int = 3) -> Placement:
     order = {rid: i for i, rid in enumerate([job.submit_region] + regions)}
     options.sort(key=lambda o: (round(o.cost, 9), o.start, order.get(o.region, 99)))
     chosen = options[0]
-    alternatives = tuple(options[1 : 1 + top_k])
+    # Alternatives: the best slot in each *other* region, so the explanation shows
+    # what the other places would have cost, not the same region an hour later.
+    best_per_region: dict[str, Option] = {}
+    for o in options[1:]:
+        if o.region != chosen.region and o.region not in best_per_region:
+            best_per_region[o.region] = o
+    alternatives = tuple(list(best_per_region.values())[:top_k])
     return Placement(job.id, True, chosen, baseline, alternatives,
                      explain(job, chosen, baseline, alternatives), len(options))
 

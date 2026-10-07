@@ -44,7 +44,8 @@ def test_picks_cleanest_coolest_slot(surface):
     assert p.chosen.cost < 1.0
     assert p.baseline.region == "ap-south-1" and p.baseline.start == T0
     assert p.baseline.cost == pytest.approx(1.0)
-    assert len(p.alternatives) == 3
+    assert len(p.alternatives) == 2  # one per other region
+    assert len({a.region for a in p.alternatives} | {p.chosen.region}) == 3
     assert "eu-north-1" in p.reason and "less water" in p.reason and "Next best" in p.reason
 
 

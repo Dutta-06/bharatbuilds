@@ -2,16 +2,173 @@ AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Description: Pravaah - water- and carbon-aware scheduling for AI workloads
 
-# Step 0 skeleton. Step 3 adds the table, bucket and real functions.
+# Build with `make build` (packs model/, scheduler/, sources/, backend/, data and
+# PyYAML into the core layer, then runs `sam build`). Data model: docs/data-model.md.
+
+Parameters:
+  ElectricityMapsToken:
+    Type: String
+    NoEcho: true
+    Default: ""
+    Description: Electricity Maps API token. Empty = modelled carbon profile (labelled as such).
+  Offline:
+    Type: String
+    AllowedValues: ["true", "false"]
+    Default: "false"
+    Description: "true = synthetic weather (no Open-Meteo calls). For demos without internet only."
+  TableReadCapacity:
+    Type: Number
+    Default: 15
+  TableWriteCapacity:
+    Type: Number
+    Default: 20
 
 Globals:
   Function:
     Runtime: python3.12
-    Architectures: [arm64]
-    MemorySize: 256
-    Timeout: 10
+    # x86_64 so `sam local` runs on the standard Lambda image everywhere; the cost
+    # difference is negligible inside the free tier.
+    Architectures: [x86_64]
+    MemorySize: 512
+    Timeout: 30
+    Layers:
+      - !Ref CoreLayer
+    Environment:
+      Variables:
+        TABLE_NAME: !Ref MainTable
+        BUCKET_NAME: !Ref DataBucket
+        ELECTRICITYMAPS_TOKEN: !Ref ElectricityMapsToken
+        PRAVAAH_OFFLINE: !Ref Offline
+        LOCAL_ENDPOINT_URL: ""  # set by env.local.json for sam local + LocalStack only
+  HttpApi:
+    CorsConfiguration:
+      AllowOrigins: ["*"]
+      AllowMethods: [GET, POST, OPTIONS]
+      AllowHeaders: [content-type]
 
 Resources:
+  MainTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: pravaah-main
+      BillingMode: PROVISIONED
+      ProvisionedThroughput:
+        ReadCapacityUnits: !Ref TableReadCapacity
+        WriteCapacityUnits: !Ref TableWriteCapacity
+      AttributeDefinitions:
+        - {AttributeName: PK, AttributeType: S}
+        - {AttributeName: SK, AttributeType: S}
+        - {AttributeName: GSI1PK, AttributeType: S}
+        - {AttributeName: GSI1SK, AttributeType: S}
+      KeySchema:
+        - {AttributeName: PK, KeyType: HASH}
+        - {AttributeName: SK, KeyType: RANGE}
+      GlobalSecondaryIndexes:
+        - IndexName: GSI1
+          KeySchema:
+            - {AttributeName: GSI1PK, KeyType: HASH}
+            - {AttributeName: GSI1SK, KeyType: RANGE}
+          Projection: {ProjectionType: ALL}
+          ProvisionedThroughput: {ReadCapacityUnits: 5, WriteCapacityUnits: 5}
+      TimeToLiveSpecification:
+        AttributeName: expires_at
+        Enabled: true
+
+  DataBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  CoreLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: pravaah-core
+      Description: Cost model, scheduler, data sources, backend helpers, config
+      ContentUri: build/layer/
+      CompatibleRuntimes: [python3.12]
+
+  FetchForecastFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/fetch_forecast/
+      Handler: app.handler
+      Policies:
+        - S3WritePolicy: {BucketName: !Ref DataBucket}
+
+  StoreForecastFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/store_forecast/
+      Handler: app.handler
+      Policies:
+        - DynamoDBWritePolicy: {TableName: !Ref MainTable}
+
+  ScoreGridFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/score_grid/
+      Handler: app.handler
+      Policies:
+        - DynamoDBCrudPolicy: {TableName: !Ref MainTable}
+
+  GetSurfaceFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/get_surface/
+      Handler: app.handler
+      Policies:
+        - DynamoDBReadPolicy: {TableName: !Ref MainTable}
+      Events:
+        Surface:
+          Type: HttpApi
+          Properties: {Path: /surface, Method: get}
+        Regions:
+          Type: HttpApi
+          Properties: {Path: /regions, Method: get}
+
+  SubmitJobFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/submit_job/
+      Handler: app.handler
+      Policies:
+        - DynamoDBCrudPolicy: {TableName: !Ref MainTable}
+      Events:
+        Submit:
+          Type: HttpApi
+          Properties: {Path: /jobs, Method: post}
+
+  GetJobFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/get_job/
+      Handler: app.handler
+      Policies:
+        - DynamoDBReadPolicy: {TableName: !Ref MainTable}
+      Events:
+        Queue:
+          Type: HttpApi
+          Properties: {Path: /jobs, Method: get}
+        Job:
+          Type: HttpApi
+          Properties: {Path: "/jobs/{id}", Method: get}
+
+  GetReceiptFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/get_receipt/
+      Handler: app.handler
+      Policies:
+        - DynamoDBReadPolicy: {TableName: !Ref MainTable}
+      Events:
+        Receipt:
+          Type: HttpApi
+          Properties: {Path: "/jobs/{id}/receipt", Method: get}
+
   HealthFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -20,10 +177,12 @@ Resources:
       Events:
         Health:
           Type: HttpApi
-          Properties:
-            Path: /health
-            Method: get
+          Properties: {Path: /health, Method: get}
 
 Outputs:
   ApiUrl:
     Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+  TableName:
+    Value: !Ref MainTable
+  BucketName:
+    Value: !Ref DataBucket

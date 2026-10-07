@@ -15,7 +15,13 @@ Environmental Hacks (Bharat Builds Tour), Heat and Water track. Plan:
 |---|---|
 | 0 Setup | Repo and CI. AWS account, Electricity Maps key and eligibility are on the team |
 | 1 Cost model | Library, coefficients with sources, CLI, tests, validation notebook. Sources still need a human check (`checked: false`), and the validation notebook needs a run with internet access |
-| 2+ | Not started |
+| 2 Data | Sources (Open-Meteo, Electricity Maps + labelled modelled fallback), history pull, trace sampler + synthetic trace. Pulls need internet (see HUMAN-TODO.md) |
+| 3 Local backend | SAM, DynamoDB, 7 Lambdas, LocalStack, `make seed`; `curl localhost:3000/surface?gpu_hours=4` verified end to end |
+| 6 Scheduler | Greedy, deadline-constrained, with constraints, alternatives and explanations |
+| 4, 5, 7+ | Not started |
+
+Anything that needs a human (keys, AWS, internet-only runs, source checks) is in
+[`HUMAN-TODO.md`](HUMAN-TODO.md).
 
 ## Cost model
 
@@ -34,6 +40,27 @@ python scripts/calibrate_wue.py           # scale site-WUE curves to AWS disclos
 python notebooks/wue_validation.py        # uncalibrated curves vs published WUE (needs internet)
 ```
 
+## Backend on a laptop
+
+Needs Docker and the SAM CLI (`pip install aws-sam-cli`). No AWS account needed.
+
+```bash
+make local-up                   # LocalStack in Docker
+make local-setup                # table + bucket
+make seed                       # forecasts for every region (live Open-Meteo)
+make seed SEED_ARGS=--offline   # ...or synthetic weather + modelled carbon, no internet
+make api                        # sam local start-api on :3000
+
+curl "localhost:3000/surface?gpu_hours=4"
+curl -X POST localhost:3000/jobs -H 'content-type: application/json' \
+  -d '{"gpu_hours": 4, "deadline_h": 24, "submit_region": "ap-south-1"}'
+curl localhost:3000/jobs
+```
+
+If `public.ecr.aws` is blocked: `docker pull amazon/aws-lambda-python:3.12` and
+`make api SAM_LOCAL_ARGS="--invoke-image amazon/aws-lambda-python:3.12"`.
+Data model: [`docs/data-model.md`](docs/data-model.md).
+
 ## Layout
 
 ```
@@ -44,9 +71,13 @@ model/
   energy.py           job energy from GPU type and hours
   cost.py             footprint, cost, receipt (with uncertainty bands)
   regions.py          loads data/regions.yaml
-  openmeteo.py        weather for one hour, and history
+scheduler/            cost surface, greedy placement, trace loader
+sources/              Open-Meteo, Electricity Maps, modelled carbon fallback, synthetic weather
+backend/              DynamoDB access, forecasts store, jobs, HTTP helpers
+functions/            one folder per Lambda
 data/regions.yaml     candidate AWS regions
-scripts/              validate_data, calibrate_wue
+data/trace.synthetic.csv  labelled synthetic job queue (until the Alibaba trace is sampled)
+scripts/              validate_data, calibrate_wue, pull_history, sample_trace, local_setup, seed_local
 notebooks/            wue_validation (percent-format notebook)
 docs/cost-model.md    one-page explainer
 ```
