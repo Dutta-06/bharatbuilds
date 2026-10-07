@@ -21,7 +21,8 @@ Environmental Hacks (Bharat Builds Tour), Heat and Water track. Plan:
 | 5 Forecast pipeline | `pravaah-forecast` state machine, hourly schedule, verified in Step Functions Local |
 | 7 Executor | `pravaah-run` state machine (Wait, cross-region worker, receipt, SNS), verified in Step Functions Local |
 | 9 Dashboard | React + Vite + Leaflet: Submit, Queue, Surface, Job/receipt, Savings, Forecast quality |
-| 4, 8, 10+ | Not started (8 = deploy, needs the AWS account) |
+| 10 Trace replay | `scripts/replay.py`: naive vs Pravaah, deadline hit rate, median delay, when-vs-where, slack and weight sensitivity; shown on the Savings page with its assumptions |
+| 4, 8, 11+ | Not started (8 = deploy, needs the AWS account) |
 
 Anything that needs a human (keys, AWS, internet-only runs, source checks) is in
 [`HUMAN-TODO.md`](HUMAN-TODO.md).
@@ -41,6 +42,7 @@ python -m model --region eu-north-1 --hour 2026-10-10T02:00 --gpu-hours 4 --temp
 
 python scripts/calibrate_wue.py           # scale site-WUE curves to AWS disclosures (needs internet)
 python notebooks/wue_validation.py        # uncalibrated curves vs published WUE (needs internet)
+python scripts/replay.py                  # trace replay -> dashboard/public/replay.json
 ```
 
 ## Backend on a laptop

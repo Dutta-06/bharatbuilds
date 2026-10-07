@@ -1,0 +1,143 @@
+{
+ "generated_at": "2026-10-07T18:03Z",
+ "assumptions": [
+  "Perfect foresight: the scheduler sees the replay window's actual weather and carbon (an upper bound).",
+  "Naive = every job runs immediately in the region it was submitted from.",
+  "Trace: synthetic (trace.synthetic.csv); deadlines are synthetic slack, regions assigned uniformly.",
+  "Weather and carbon: synthetic weather + modelled carbon (no history pulled yet).",
+  "Site water uses physics curves; uncalibrated regions overstate absolute litres (see HUMAN-TODO)."
+ ],
+ "trace_source": [
+  "synthetic"
+ ],
+ "weather_source": "synthetic weather + modelled carbon (no history pulled yet)",
+ "headline": {
+  "jobs": 500,
+  "naive": {
+   "litres": 2691.4,
+   "kg_co2": 553.98
+  },
+  "pravaah": {
+   "litres": 527.5,
+   "kg_co2": 143.44
+  },
+  "saved_pct": {
+   "litres": 80.4,
+   "kg_co2": 74.1
+  },
+  "deadline_hit_rate_pct": 100.0,
+  "infeasible_ran_now": 0,
+  "median_delay_h": 6.0,
+  "moved_region_pct": 76.0,
+  "gpu_hours_by_region": {
+   "naive": {
+    "ap-south-1": 329.7,
+    "ap-south-2": 446.4,
+    "ap-southeast-1": 463.5,
+    "eu-central-1": 509.8,
+    "eu-north-1": 478.6,
+    "eu-west-1": 461.7,
+    "us-east-1": 623.3,
+    "us-west-2": 476.3
+   },
+   "pravaah": {
+    "eu-north-1": 478.6,
+    "us-west-2": 3310.8
+   }
+  }
+ },
+ "when_vs_where": {
+  "time_only_same_region": {
+   "saved_pct": {
+    "litres": 0.0,
+    "kg_co2": 8.5
+   },
+   "median_delay_h": 5.0,
+   "moved_region_pct": 0.0
+  },
+  "time_and_region": {
+   "saved_pct": {
+    "litres": 80.4,
+    "kg_co2": 74.1
+   },
+   "median_delay_h": 6.0,
+   "moved_region_pct": 76.0
+  }
+ },
+ "slack_sensitivity": [
+  {
+   "extra_slack_h": 0,
+   "saved_pct": {
+    "litres": 80.4,
+    "kg_co2": 73.7
+   },
+   "median_delay_h": 0.0,
+   "moved_region_pct": 76.0
+  },
+  {
+   "extra_slack_h": 4,
+   "saved_pct": {
+    "litres": 80.4,
+    "kg_co2": 73.9
+   },
+   "median_delay_h": 1.0,
+   "moved_region_pct": 76.0
+  },
+  {
+   "extra_slack_h": 12,
+   "saved_pct": {
+    "litres": 80.4,
+    "kg_co2": 74.1
+   },
+   "median_delay_h": 6.0,
+   "moved_region_pct": 76.0
+  },
+  {
+   "extra_slack_h": 24,
+   "saved_pct": {
+    "litres": 80.4,
+    "kg_co2": 74.2
+   },
+   "median_delay_h": 10.0,
+   "moved_region_pct": 76.0
+  },
+  {
+   "extra_slack_h": 48,
+   "saved_pct": {
+    "litres": 80.4,
+    "kg_co2": 74.2
+   },
+   "median_delay_h": 10.0,
+   "moved_region_pct": 76.0
+  }
+ ],
+ "weight_sensitivity": [
+  {
+   "weights": "water only",
+   "saved_pct": {
+    "litres": 85.4,
+    "kg_co2": 71.4
+   },
+   "median_delay_h": 0.0,
+   "moved_region_pct": 88.0
+  },
+  {
+   "weights": "balanced",
+   "saved_pct": {
+    "litres": 80.4,
+    "kg_co2": 74.1
+   },
+   "median_delay_h": 6.0,
+   "moved_region_pct": 76.0
+  },
+  {
+   "weights": "carbon only",
+   "saved_pct": {
+    "litres": 46.0,
+    "kg_co2": 90.2
+   },
+   "median_delay_h": 5.0,
+   "moved_region_pct": 88.0
+  }
+ ]
+}

@@ -144,3 +144,13 @@ def test_every_trace_like_job_gets_slot_or_reason(surface):
         assert p.feasible or p.reason, j
         if p.feasible:
             assert p.chosen.end <= j.deadline
+
+
+def test_prefix_window_matches_direct_sum(surface):
+    from scheduler.surface import sum_footprints
+    start = T0 + timedelta(hours=7)
+    fast = surface.window("ap-south-1", start, 5, 2.0)
+    direct = sum_footprints([surface.unit["ap-south-1"][hour_key(start + timedelta(hours=i))] for i in range(5)],
+                            2.0 / 5, hour_key(start))
+    for name in ("litres", "kg_co2", "litres_low", "kg_high", "t_wb", "it_kwh"):
+        assert getattr(fast, name) == pytest.approx(getattr(direct, name)), name

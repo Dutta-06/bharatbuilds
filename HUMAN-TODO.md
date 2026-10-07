@@ -58,3 +58,12 @@ file in a PR) so everyone can see what's done.
 - [ ] Open it on an actual phone and run Lighthouse (mobile). The plan's target is above 80.
 - [ ] Ask someone outside the team to submit a job and find its receipt without help
       (the plan's Step 9 "done when").
+
+## Trace replay (Step 10)
+- [ ] After `pull_history.py` (and, ideally, sampling the real Alibaba trace), rerun
+      `python scripts/replay.py` and commit `dashboard/public/replay.json`. The shipped file uses
+      **synthetic weather, modelled carbon and a synthetic trace**, and says so on the page.
+      Do not quote its numbers in the video or blog until it has been rerun on real data.
+- [ ] Note for the blog: in the synthetic run, shifting time alone saves ~0% water (hot regions
+      sit on the cooling-tower plateau all day, cool ones barely evaporate) but ~8% CO2. Moving
+      region drives most of the savings. Check whether real hourly weather changes this.
