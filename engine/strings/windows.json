@@ -1,0 +1,73 @@
+{
+  "en": {
+    "work": {"light": "light", "moderate": "moderate", "heavy": "heavy"},
+    "level": {"green": "Safe", "amber": "Caution", "red": "Danger"},
+    "time": {
+      "format": "{hour} {meridiem}",
+      "format_other_day": "{hour} {meridiem} {day}",
+      "am": "AM",
+      "pm": "PM",
+      "day": {"1": "tomorrow", "2": "day after tomorrow"}
+    },
+    "heat": {
+      "now_green_until": "Safe for {work} work now, until {time}.",
+      "now_green_all": "Safe for {work} work for the next 48 hours.",
+      "now_amber_until": "Take care now: drink water and rest in shade every hour, until {time}.",
+      "now_amber_all": "Take care for the next 48 hours: drink water and rest in shade every hour.",
+      "now_red_until": "Danger now: stop {work} work and rest in shade until {time}.",
+      "now_red_all": "Danger for the next 48 hours: avoid {work} work outdoors.",
+      "next_red": "Avoid {work} work from {start} to {end}.",
+      "next_safe": "Next safe time for {work} work: {start} to {end}.",
+      "no_safe": "No safe time for {work} work in the next 48 hours."
+    },
+    "waterlogging": {
+      "now_green_until": "Roads clear now, until {time}.",
+      "now_green_all": "No waterlogging expected in the next 48 hours.",
+      "now_amber_until": "Water may collect on roads now, until {time}. Avoid underpasses.",
+      "now_amber_all": "Water may collect on roads for the next 48 hours. Avoid underpasses.",
+      "now_red_until": "Waterlogging now: avoid low roads and underpasses until {time}.",
+      "now_red_all": "Waterlogging for the next 48 hours: avoid low roads and underpasses.",
+      "next_red": "Waterlogging likely from {start} to {end}. Avoid underpasses.",
+      "next_safe": "Roads should clear from {start} to {end}.",
+      "no_safe": "Roads may stay waterlogged for the next 48 hours."
+    }
+  },
+  "hi": {
+    "work": {"light": "हल्का", "moderate": "मध्यम", "heavy": "भारी"},
+    "level": {"green": "सुरक्षित", "amber": "सावधान", "red": "खतरा"},
+    "time": {
+      "format": "{meridiem} {hour} बजे",
+      "format_other_day": "{day} {meridiem} {hour} बजे",
+      "dayparts": [
+        {"from": 0, "to": 3, "word": "रात"},
+        {"from": 4, "to": 11, "word": "सुबह"},
+        {"from": 12, "to": 15, "word": "दोपहर"},
+        {"from": 16, "to": 19, "word": "शाम"},
+        {"from": 20, "to": 23, "word": "रात"}
+      ],
+      "day": {"1": "कल", "2": "परसों"}
+    },
+    "heat": {
+      "now_green_until": "अभी {work} काम के लिए सुरक्षित है, {time} तक।",
+      "now_green_all": "अगले 48 घंटे {work} काम के लिए सुरक्षित हैं।",
+      "now_amber_until": "अभी सावधान रहें: {time} तक हर घंटे पानी पिएं और छाँव में आराम करें।",
+      "now_amber_all": "अगले 48 घंटे सावधान रहें: हर घंटे पानी पिएं और छाँव में आराम करें।",
+      "now_red_until": "अभी खतरा है: {time} तक {work} काम रोकें और छाँव में आराम करें।",
+      "now_red_all": "अगले 48 घंटे खतरा है: बाहर {work} काम न करें।",
+      "next_red": "{start} से {end} तक {work} काम न करें।",
+      "next_safe": "{work} काम के लिए अगला सुरक्षित समय: {start} से {end} तक।",
+      "no_safe": "अगले 48 घंटे में {work} काम के लिए कोई सुरक्षित समय नहीं है।"
+    },
+    "waterlogging": {
+      "now_green_until": "अभी सड़कें साफ़ हैं, {time} तक।",
+      "now_green_all": "अगले 48 घंटे जलभराव की संभावना नहीं है।",
+      "now_amber_until": "अभी {time} तक सड़कों पर पानी भर सकता है। अंडरपास से बचें।",
+      "now_amber_all": "अगले 48 घंटे सड़कों पर पानी भर सकता है। अंडरपास से बचें।",
+      "now_red_until": "अभी जलभराव है: {time} तक निचली सड़कों और अंडरपास से बचें।",
+      "now_red_all": "अगले 48 घंटे जलभराव रहेगा: निचली सड़कों और अंडरपास से बचें।",
+      "next_red": "{start} से {end} तक जलभराव की संभावना है। अंडरपास से बचें।",
+      "next_safe": "{start} से {end} तक सड़कें साफ़ होनी चाहिए।",
+      "no_safe": "अगले 48 घंटे सड़कों पर जलभराव रह सकता है।"
+    }
+  }
+}

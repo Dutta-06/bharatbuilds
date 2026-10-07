@@ -1,0 +1,29 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Chhaanv - heat and water risk layer for Indian cities
+
+# Step 0 skeleton. Step 3 adds the DynamoDB table, S3 bucket and real functions.
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Architectures: [arm64]
+    MemorySize: 256
+    Timeout: 10
+
+Resources:
+  HealthFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/health/
+      Handler: app.handler
+      Events:
+        Health:
+          Type: HttpApi
+          Properties:
+            Path: /health
+            Method: get
+
+Outputs:
+  ApiUrl:
+    Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com"
