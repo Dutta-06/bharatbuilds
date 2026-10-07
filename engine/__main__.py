@@ -2,6 +2,7 @@
 
     python -m engine --lat 28.7 --lon 77.1 --work heavy
     python -m engine --lat 28.7 --lon 77.1 --work heavy --lang hi --hazard waterlogging
+    python -m engine --city delhi --cell rohini --work heavy
     python -m engine --from-file tests/engine/fixtures/delhi_may_synthetic.json --now 2026-05-26T06:00
 """
 
@@ -12,7 +13,7 @@ import json
 import sys
 from datetime import datetime
 
-from . import openmeteo
+from . import grid, openmeteo
 from .risk import assess
 from .thresholds import WORK_INTENSITIES
 from .windows import HAZARDS, languages
@@ -44,6 +45,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--work", choices=WORK_INTENSITIES, default="heavy")
     p.add_argument("--lang", choices=languages(), default="en")
     p.add_argument("--hazard", choices=HAZARDS + ("all",), default="all")
+    p.add_argument("--city", help="city id from data/cities (enables --cell and hotspot lookup)")
+    p.add_argument("--cell", help="cell id within --city; overrides --lat/--lon")
     p.add_argument("--hotspot", action="store_true", help="treat the point as a waterlogging hotspot")
     p.add_argument("--ref-elevation", type=float, default=DELHI_REF_ELEVATION_M,
                    help="city reference elevation in m (default: Delhi)")
@@ -53,6 +56,24 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--json", action="store_true", help="print the full result as JSON")
     p.add_argument("--no-color", action="store_true")
     args = p.parse_args(argv)
+
+    cell = None
+    if args.city:
+        city = grid.load_city(args.city)
+        if args.cell:
+            try:
+                cell = city.cell(args.cell)
+            except KeyError:
+                p.error(f"no cell {args.cell!r} in {args.city}; one of: "
+                        + ", ".join(c.id for c in city.cells))
+        else:
+            cell, _ = city.nearest(args.lat, args.lon)
+        args.lat, args.lon = cell.lat, cell.lon
+        args.hotspot = args.hotspot or cell.id in grid.hotspot_cells(args.city)
+        if city.ref_elevation_m is not None:
+            args.ref_elevation = city.ref_elevation_m
+    elif args.cell:
+        p.error("--cell needs --city")
 
     if args.from_file:
         with open(args.from_file, encoding="utf-8") as f:
@@ -72,6 +93,7 @@ def main(argv: list[str] | None = None) -> int:
         city_ref_elevation_m=args.ref_elevation,
         acclimatised=not args.unacclimatised,
         now=datetime.fromisoformat(args.now) if args.now else None,
+        elevation_m=cell.elevation_m if cell else None,
     )
 
     if args.json:
@@ -80,8 +102,10 @@ def main(argv: list[str] | None = None) -> int:
 
     color = not args.no_color and sys.stdout.isatty()
     hazards = HAZARDS if args.hazard == "all" else (args.hazard,)
-    print(f"{forecast.latitude}, {forecast.longitude} · elevation {forecast.elevation} m · "
-          f"{args.work} work\n")
+    place = f"{cell.name} ({cell.name_hi})" if cell else f"{forecast.latitude}, {forecast.longitude}"
+    hotspot = " · waterlogging hotspot" if args.hotspot else ""
+    elevation = cell.elevation_m if cell and cell.elevation_m is not None else forecast.elevation
+    print(f"{place} · elevation {elevation} m{hotspot} · {args.work} work\n")
     for hazard in hazards:
         h = result["hazards"][hazard]
         print(f"== {hazard} · now: {h['now_word']} ==")
