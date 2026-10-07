@@ -1,8 +1,8 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
-Description: Chhaanv - heat and water risk layer for Indian cities
+Description: Pravaah - water- and carbon-aware scheduling for AI workloads
 
-# Step 0 skeleton. Step 3 adds the DynamoDB table, S3 bucket and real functions.
+# Step 0 skeleton. Step 3 adds the table, bucket and real functions.
 
 Globals:
   Function:
