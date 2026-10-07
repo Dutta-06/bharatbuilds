@@ -99,6 +99,8 @@ def submit(body: dict, now: datetime | None = None) -> dict:
             "data_residency": job.data_residency, "max_delay_h": job.max_delay_h,
             "weights": {"water": job.weights.water, "carbon": job.weights.carbon},
         },
+        "team": body.get("team"),
+        "policy_applied": body.get("policy_applied"),
         "it_kwh_estimated": round(job.it_kwh, 4),
         "duration_h": job.duration_h,
         "placement": placement.as_dict(submit_time=now),

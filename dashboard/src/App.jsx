@@ -5,10 +5,11 @@ import Queue from "./pages/Queue.jsx";
 import Job from "./pages/Job.jsx";
 import Savings from "./pages/Savings.jsx";
 import Quality from "./pages/Quality.jsx";
+import Policies from "./pages/Policies.jsx";
 
 const PAGES = [
   ["submit", "Submit"], ["queue", "Queue"], ["surface", "Surface"],
-  ["savings", "Savings"], ["quality", "Forecast quality"],
+  ["savings", "Savings"], ["quality", "Forecast quality"], ["policies", "Policies"],
 ];
 
 function useRoute() {
@@ -30,6 +31,7 @@ export default function App() {
   else if (page === "surface") body = <Surface />;
   else if (page === "savings") body = <Savings />;
   else if (page === "quality") body = <Quality />;
+  else if (page === "policies") body = <Policies />;
   else body = <Submit />;
   return (
     <>

@@ -13,7 +13,7 @@ import time
 
 import boto3
 
-from backend import db, jobs
+from backend import db, jobs, policies
 from backend.http import handle, json_body, response
 
 
@@ -42,7 +42,7 @@ def emit_metrics(job: dict) -> None:
 
 @handle
 def handler(event, context):
-    job = jobs.submit(json_body(event))
+    job = jobs.submit(policies.apply(json_body(event)))
     emit_metrics(job)
     execution = start_run(job)
     if execution:

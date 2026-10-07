@@ -97,3 +97,14 @@ file in a PR) so everyone can see what's done.
 - [ ] Submission form: repo, deployed URL, video, blog, track = Heat and Water, services used
       (the template's real list: Lambda, API Gateway, Step Functions, EventBridge, DynamoDB,
       S3, SNS, CloudFront, CloudWatch, Amplify; SageMaker only if you ran training there).
+
+## Policies, sign-in and the public API (Step 12)
+- [ ] Create a platform lead (self-sign-up is off):
+      `aws cognito-idp admin-create-user --user-pool-id <UserPoolId> --username you@example.com`
+      then `aws cognito-idp admin-set-user-password --user-pool-id <UserPoolId> --username you@example.com --password '<Strong1Password>' --permanent`
+      and `aws cognito-idp admin-add-user-to-group --user-pool-id <UserPoolId> --username you@example.com --group-name platform-leads`.
+- [ ] In Amplify, set `VITE_COGNITO_CLIENT_ID` (output `UserPoolClientId`) and `VITE_COGNITO_REGION`.
+      The Policies page was **not** tested against a real user pool. Try it once.
+- [ ] Plan check: sign in, set team `ml` to 100% water, submit a job with `"team": "ml"`, and
+      confirm the job's `request.weights` shows water 1.0.
+- [ ] `/price` has throttling but no API keys (HTTP APIs don't support them; see docs/api.md).

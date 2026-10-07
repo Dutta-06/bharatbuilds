@@ -51,13 +51,83 @@ Globals:
         ELECTRICITYMAPS_TOKEN: !Ref ElectricityMapsToken
         PRAVAAH_OFFLINE: !Ref Offline
         LOCAL_ENDPOINT_URL: ""  # set by env.local.json for sam local + LocalStack only
-  HttpApi:
-    CorsConfiguration:
-      AllowOrigins: ["*"]
-      AllowMethods: [GET, POST, OPTIONS]
-      AllowHeaders: [content-type]
 
 Resources:
+  # --- API (explicit so it can carry the Cognito authorizer and throttling) -------
+
+  PravaahApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      CorsConfiguration:
+        AllowOrigins: ["*"]
+        AllowMethods: [GET, POST, PUT, OPTIONS]
+        AllowHeaders: [content-type, authorization]
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 100
+        ThrottlingRateLimit: 50
+      Auth:
+        Authorizers:
+          CognitoAuthorizer:
+            IdentitySource: $request.header.Authorization
+            JwtConfiguration:
+              issuer: !Sub "https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPool}"
+              audience: [!Ref UserPoolClient]
+
+  # --- Step 12: sign-in for platform leads --------------------------------------
+
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: pravaah-users
+      UsernameAttributes: [email]
+      AutoVerifiedAttributes: [email]
+      AdminCreateUserConfig: {AllowAdminCreateUserOnly: true}
+      Policies:
+        PasswordPolicy: {MinimumLength: 12, RequireNumbers: true, RequireSymbols: false,
+                         RequireUppercase: true, RequireLowercase: true}
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref UserPool
+      ClientName: pravaah-dashboard
+      GenerateSecret: false
+      ExplicitAuthFlows: [ALLOW_USER_SRP_AUTH, ALLOW_USER_PASSWORD_AUTH, ALLOW_REFRESH_TOKEN_AUTH]
+
+  PlatformLeadsGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      UserPoolId: !Ref UserPool
+      GroupName: platform-leads
+      Description: Can change team policies
+
+  PoliciesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/policies/
+      Handler: app.handler
+      Policies:
+        - DynamoDBCrudPolicy: {TableName: !Ref MainTable}
+      Events:
+        Read:
+          Type: HttpApi
+          Properties: {ApiId: !Ref PravaahApi, Path: "/policies/{team}", Method: get, Auth: {Authorizer: CognitoAuthorizer}}
+        Write:
+          Type: HttpApi
+          Properties: {ApiId: !Ref PravaahApi, Path: "/policies/{team}", Method: put, Auth: {Authorizer: CognitoAuthorizer}}
+
+  GetPriceFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/get_price/
+      Handler: app.handler
+      Policies:
+        - DynamoDBReadPolicy: {TableName: !Ref MainTable}
+      Events:
+        Price:
+          Type: HttpApi
+          Properties: {ApiId: !Ref PravaahApi, Path: /price, Method: get}
+
   MainTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -144,10 +214,10 @@ Resources:
       Events:
         Surface:
           Type: HttpApi
-          Properties: {Path: /surface, Method: get}
+          Properties: {ApiId: !Ref PravaahApi, Path: /surface, Method: get}
         Regions:
           Type: HttpApi
-          Properties: {Path: /regions, Method: get}
+          Properties: {ApiId: !Ref PravaahApi, Path: /regions, Method: get}
 
   SubmitJobFunction:
     Type: AWS::Serverless::Function
@@ -163,7 +233,7 @@ Resources:
       Events:
         Submit:
           Type: HttpApi
-          Properties: {Path: /jobs, Method: post}
+          Properties: {ApiId: !Ref PravaahApi, Path: /jobs, Method: post}
 
   GetJobFunction:
     Type: AWS::Serverless::Function
@@ -175,10 +245,10 @@ Resources:
       Events:
         Queue:
           Type: HttpApi
-          Properties: {Path: /jobs, Method: get}
+          Properties: {ApiId: !Ref PravaahApi, Path: /jobs, Method: get}
         Job:
           Type: HttpApi
-          Properties: {Path: "/jobs/{id}", Method: get}
+          Properties: {ApiId: !Ref PravaahApi, Path: "/jobs/{id}", Method: get}
 
   GetReceiptFunction:
     Type: AWS::Serverless::Function
@@ -190,7 +260,7 @@ Resources:
       Events:
         Receipt:
           Type: HttpApi
-          Properties: {Path: "/jobs/{id}/receipt", Method: get}
+          Properties: {ApiId: !Ref PravaahApi, Path: "/jobs/{id}/receipt", Method: get}
 
   ExecutorFunction:
     Type: AWS::Serverless::Function
@@ -314,7 +384,7 @@ Resources:
         PriceClass: PriceClass_200   # includes India
         Origins:
           - Id: api
-            DomainName: !Sub "${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+            DomainName: !Sub "${PravaahApi}.execute-api.${AWS::Region}.amazonaws.com"
             CustomOriginConfig: {OriginProtocolPolicy: https-only}
         DefaultCacheBehavior:
           TargetOriginId: api
@@ -397,7 +467,7 @@ Resources:
                         ["...", "eu-north-1"], ["...", "us-east-1"]]}},
           {"type": "metric", "x": 0, "y": 12, "width": 12, "height": 6, "properties": {
             "title": "API latency (ms)", "region": "${AWS::Region}", "stat": "p90", "period": 300,
-            "metrics": [["AWS/ApiGateway", "Latency", "ApiId", "${ServerlessHttpApi}"]]}},
+            "metrics": [["AWS/ApiGateway", "Latency", "ApiId", "${PravaahApi}"]]}},
           {"type": "metric", "x": 12, "y": 12, "width": 12, "height": 6, "properties": {
             "title": "Lambda errors", "region": "${AWS::Region}", "stat": "Sum", "period": 300,
             "metrics": [["AWS/Lambda", "Errors", "FunctionName", "${FetchForecastFunction}"],
@@ -413,14 +483,14 @@ Resources:
       Events:
         Health:
           Type: HttpApi
-          Properties: {Path: /health, Method: get}
+          Properties: {ApiId: !Ref PravaahApi, Path: /health, Method: get}
 
 Outputs:
   ApiUrl:
     Description: Use this (CloudFront) as the dashboard's VITE_API_URL
     Value: !Sub "https://${ApiDistribution.DomainName}"
   ApiOriginUrl:
-    Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+    Value: !Sub "https://${PravaahApi}.execute-api.${AWS::Region}.amazonaws.com"
   DashboardUrl:
     Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=pravaah"
   TableName:
@@ -433,3 +503,7 @@ Outputs:
     Value: !Ref RunStateMachine
   NotificationsTopicArn:
     Value: !Ref NotificationsTopic
+  UserPoolId:
+    Value: !Ref UserPool
+  UserPoolClientId:
+    Value: !Ref UserPoolClient

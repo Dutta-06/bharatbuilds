@@ -27,7 +27,8 @@ Environmental Hacks (Bharat Builds Tour), Heat and Water track. Plan:
 | 14 Hardening | Dashboard error states, alarms, `scripts/load_test.py`, docs below. Feature freeze and the three-in-a-row check are on the team |
 | 11 Splittable jobs | OR-Tools CP-SAT plan (exact DP fallback in Lambda, tested to agree); `"splittable": true` on POST /jobs; shown on the job page. Executing split plans is design-only. Aqueduct stress multiplier is wired in, but scores still need looking up |
 | 15-16 Video, blog | Drafts in `docs/` with [placeholders] for real numbers |
-| 12-13 | Not started |
+| 12 Policies, auth, public API | Cognito (platform-leads group) + JWT authorizer; GET/PUT /policies/{team} applied on submit; public throttled `GET /price`; [`docs/api.md`](docs/api.md); Policies page (untested without a user pool) |
+| 13 | Not started |
 
 Anything that needs a human (keys, AWS, internet-only runs, source checks) is in
 [`HUMAN-TODO.md`](HUMAN-TODO.md).
