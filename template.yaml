@@ -45,7 +45,7 @@ Parameters:
     Type: String
     NoEcho: true
     Default: ""
-    Description: For AssistantProvider=openai, the provider's API key (consider Secrets Manager for production)
+    Description: For AssistantProvider=openai, the provider's API key. Several keys separated by commas are tried in turn when one is rate-limited (consider Secrets Manager for production)
   BedrockModelId:
     Type: String
     Default: ""
@@ -258,35 +258,6 @@ Resources:
             Principal: "*"
             Action: s3:GetObject
             Resource: !Sub "${PublicSurfaceBucket.Arn}/surface/*"
-
-  # Used by scripts/sagemaker_train.py (training jobs only; nothing is hosted on SageMaker).
-  SageMakerTrainingRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Statement:
-          - Effect: Allow
-            Principal: {Service: sagemaker.amazonaws.com}
-            Action: sts:AssumeRole
-      Policies:
-        - PolicyName: training
-          PolicyDocument:
-            Statement:
-              - Effect: Allow
-                Action: [s3:GetObject, s3:PutObject]
-                Resource: !Sub "${DataBucket.Arn}/training/*"
-              - Effect: Allow
-                Action: s3:ListBucket
-                Resource: !GetAtt DataBucket.Arn
-              - Effect: Allow
-                Action: [ecr:GetAuthorizationToken]
-                Resource: "*"
-              - Effect: Allow
-                Action: [ecr:BatchGetImage, ecr:GetDownloadUrlForLayer, ecr:BatchCheckLayerAvailability]
-                Resource: "*"
-              - Effect: Allow
-                Action: [logs:CreateLogGroup, logs:CreateLogStream, logs:PutLogEvents, logs:DescribeLogStreams]
-                Resource: "*"
 
   CoreLayer:
     Type: AWS::Serverless::LayerVersion
@@ -633,8 +604,6 @@ Outputs:
       - UseCloudFront
       - !Sub "https://${ApiDistribution.DomainName}"
       - !Sub "https://${PravaahApi}.execute-api.${AWS::Region}.amazonaws.com"
-  SageMakerRoleArn:
-    Value: !GetAtt SageMakerTrainingRole.Arn
   SurfaceUrl:
     Description: Public S3 copies of the default /surface grids; set as the dashboard's VITE_SURFACE_URL
     Value: !Sub "https://${PublicSurfaceBucket.RegionalDomainName}/surface"

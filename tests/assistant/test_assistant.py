@@ -79,3 +79,57 @@ def test_chat_handler_validates_input(monkeypatch):
     monkeypatch.setattr(m.agent, "ask", lambda msg: tools.CALLS.append({"tool": "x", "args": {}}) or "ok")
     out = m.handler({"body": json.dumps({"message": "hi"})}, None)
     assert out["statusCode"] == 200 and json.loads(out["body"])["tool_calls"] == [{"tool": "x", "args": {}}]
+
+
+def test_openai_keys_fail_over_when_rate_limited(monkeypatch):
+    from assistant import agent
+    from strands.types.exceptions import ModelThrottledException
+
+    monkeypatch.setenv("ASSISTANT_PROVIDER", "openai")
+    monkeypatch.setenv("LLM_API_KEY", "k1, k2 ,k3")
+    assert agent.llm_keys() == ["k1", "k2", "k3"]
+    used = []
+
+    class Fake:
+        def __init__(self, key):
+            self.key = key
+
+        def __call__(self, prompt):
+            used.append(self.key)
+            if self.key != "k2":
+                raise ModelThrottledException("429")
+            return " ok "
+
+    monkeypatch.setattr(agent, "build_model", lambda key=None: key)
+    monkeypatch.setattr(agent, "build_agent", lambda model=None: Fake(model))
+    assert agent.ask("hi") == "ok"
+    assert used[-1] == "k2" and len(set(used)) == len(used)
+
+    used.clear()
+    monkeypatch.setenv("LLM_API_KEY", "k1,k3")
+    with pytest.raises(ModelThrottledException):
+        agent.ask("hi")
+    assert sorted(used) == ["k1", "k3"]
+
+
+def test_failover_never_retries_after_a_tool_ran(monkeypatch):
+    from assistant import agent
+    from strands.types.exceptions import ModelThrottledException
+
+    monkeypatch.setenv("ASSISTANT_PROVIDER", "openai")
+    monkeypatch.setenv("LLM_API_KEY", "k1,k2")
+    tools.CALLS.clear()
+    used = []
+
+    class Fake:
+        def __call__(self, prompt):
+            used.append(1)
+            tools.CALLS.append({"tool": "submit_job"})   # a job was already submitted
+            raise ModelThrottledException("429")
+
+    monkeypatch.setattr(agent, "build_model", lambda key=None: key)
+    monkeypatch.setattr(agent, "build_agent", lambda model=None: Fake())
+    with pytest.raises(ModelThrottledException):
+        agent.ask("hi")
+    assert used == [1]
+    tools.CALLS.clear()

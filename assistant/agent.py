@@ -12,6 +12,7 @@ Model, chosen by ASSISTANT_PROVIDER:
 from __future__ import annotations
 
 import os
+import random
 from datetime import datetime, timezone
 
 from . import tools as t
@@ -34,7 +35,12 @@ Reply in the user's language, in at most three sentences, and always end with wh
 (for example when the job will start, or what you need from them)."""
 
 
-def build_model():
+def llm_keys() -> list[str]:
+    """LLM_API_KEY may hold several comma-separated keys (one per account)."""
+    return [k.strip() for k in os.environ.get("LLM_API_KEY", "").split(",") if k.strip()]
+
+
+def build_model(key: str | None = None):
     provider = os.environ.get("ASSISTANT_PROVIDER", "anthropic")
     if provider == "bedrock":
         from strands.models.bedrock import BedrockModel
@@ -47,7 +53,7 @@ def build_model():
         missing = [k for k in ("LLM_BASE_URL", "LLM_MODEL_ID", "LLM_API_KEY") if not os.environ.get(k)]
         if missing:
             raise RuntimeError(f"ASSISTANT_PROVIDER=openai needs {', '.join(missing)}")
-        return OpenAIModel(client_args={"api_key": os.environ["LLM_API_KEY"], "base_url": os.environ["LLM_BASE_URL"]},
+        return OpenAIModel(client_args={"api_key": key or llm_keys()[0], "base_url": os.environ["LLM_BASE_URL"]},
                            model_id=os.environ["LLM_MODEL_ID"], params={"max_tokens": 2000})
     from strands.models.anthropic import AnthropicModel
 
@@ -67,8 +73,23 @@ def build_agent(model=None):
 
 def ask(message: str, agent=None, now: datetime | None = None) -> str:
     """One turn. The current time goes in the user message (not the system prompt) so the
-    system prompt stays byte-stable for caching."""
+    system prompt stays byte-stable for caching.
+
+    With several LLM_API_KEYs, start from a random one and move to the next when a key is
+    rate-limited. Only before any tool has run: after submit_job a retry could submit twice."""
     now = now or datetime.now(timezone.utc)
-    agent = agent or build_agent()
-    result = agent(f"[Current time: {now:%Y-%m-%dT%H:%MZ} ({now:%A})]\n{message}")
-    return str(result).strip()
+    prompt = f"[Current time: {now:%Y-%m-%dT%H:%MZ} ({now:%A})]\n{message}"
+    keys = llm_keys() if agent is None and os.environ.get("ASSISTANT_PROVIDER") == "openai" else []
+    if len(keys) < 2:
+        return str((agent or build_agent())(prompt)).strip()
+
+    from strands.types.exceptions import ModelThrottledException
+
+    random.shuffle(keys)
+    for i, key in enumerate(keys):
+        calls_before = len(t.CALLS)
+        try:
+            return str(build_agent(build_model(key))(prompt)).strip()
+        except ModelThrottledException:
+            if i == len(keys) - 1 or len(t.CALLS) != calls_before:
+                raise
