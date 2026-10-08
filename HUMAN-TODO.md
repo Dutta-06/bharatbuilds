@@ -95,12 +95,9 @@ eu-north-1. Still open, in order:
 - [ ] For the video and blog, quote `forecasting/models/metrics.json` honestly, including
       regions where the model was **not** used ("forecast models that didn't beat persistence
       at first" is one of the plan's blog topics).
-- [ ] SageMaker: `python scripts/sagemaker_train.py --days 60` packages the code, runs
-      `train_forecasts.py` as a training job (scikit-learn framework image, `ml.m5.xlarge`) and writes
-      the same `forecasting/models/*.json` back. Needs the stack deployed (it creates the training
-      role) and the service quota for `ml.m5.xlarge for training job usage`, which is 0 on new
-      accounts (requested; check Service Quotas). `--dry-run` shows the job request without
-      running it. The serving path stays the exported JSON in Lambda, so no endpoint is needed.
+- [ ] Training can run anywhere (e.g. Google Colab): `pip install scikit-learn pyyaml`, then
+      `python scripts/train_forecasts.py --days 60`, commit the `forecasting/models/*.json` it writes and redeploy.
+      SageMaker is not used, so leave it out of the submission's services list.
 
 ## Hardening (Step 14)
 - [ ] After deploy: `python scripts/load_test.py <ApiUrl>/surface?gpu_hours=4` (200 concurrent).
@@ -135,7 +132,8 @@ eu-north-1. Still open, in order:
 - [ ] Choose how the assistant reaches its model:
       - **Open model via an OpenAI-compatible API (Qwen, Kimi, ...):** deploy with
         `AssistantProvider=openai`, `LlmBaseUrl` (e.g. `https://openrouter.ai/api/v1`),
-        `LlmModelId` (the provider's model name) and `LlmApiKey`. The model must support tool
+        `LlmModelId` (the provider's model name) and `LlmApiKey`. `LlmApiKey` may hold several keys
+        separated by commas (e.g. one per team member); when one is rate-limited the next is tried. The model must support tool
         calling; run `make assistant-eval` to see whether it reaches 16/20 and tune
         `SYSTEM_PROMPT` if not.
       - **Anthropic API:** deploy with `AssistantProvider=anthropic` and `AnthropicApiKey=<key>`.

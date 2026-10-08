@@ -79,3 +79,74 @@ def test_chat_handler_validates_input(monkeypatch):
     monkeypatch.setattr(m.agent, "ask", lambda msg: tools.CALLS.append({"tool": "x", "args": {}}) or "ok")
     out = m.handler({"body": json.dumps({"message": "hi"})}, None)
     assert out["statusCode"] == 200 and json.loads(out["body"])["tool_calls"] == [{"tool": "x", "args": {}}]
+
+
+@pytest.fixture
+def throttled(monkeypatch):
+    """CI doesn't install strands (assistant deps are separate), so stand in for its exception."""
+    import sys
+    import types
+
+    class ModelThrottledException(Exception):
+        pass
+
+    mods = {"strands": types.ModuleType("strands"), "strands.types": types.ModuleType("strands.types"),
+            "strands.types.exceptions": types.ModuleType("strands.types.exceptions")}
+    mods["strands.types.exceptions"].ModelThrottledException = ModelThrottledException
+    for name, mod in mods.items():
+        monkeypatch.setitem(sys.modules, name, mod)
+    return ModelThrottledException
+
+
+def test_openai_keys_fail_over_when_rate_limited(monkeypatch, throttled):
+    from assistant import agent
+    ModelThrottledException = throttled
+
+    monkeypatch.setenv("ASSISTANT_PROVIDER", "openai")
+    monkeypatch.setenv("LLM_API_KEY", "k1, k2 ,k3")
+    assert agent.llm_keys() == ["k1", "k2", "k3"]
+    used = []
+
+    class Fake:
+        def __init__(self, key):
+            self.key = key
+
+        def __call__(self, prompt):
+            used.append(self.key)
+            if self.key != "k2":
+                raise ModelThrottledException("429")
+            return " ok "
+
+    monkeypatch.setattr(agent, "build_model", lambda key=None: key)
+    monkeypatch.setattr(agent, "build_agent", lambda model=None: Fake(model))
+    assert agent.ask("hi") == "ok"
+    assert used[-1] == "k2" and len(set(used)) == len(used)
+
+    used.clear()
+    monkeypatch.setenv("LLM_API_KEY", "k1,k3")
+    with pytest.raises(ModelThrottledException):
+        agent.ask("hi")
+    assert sorted(used) == ["k1", "k3"]
+
+
+def test_failover_never_retries_after_a_tool_ran(monkeypatch, throttled):
+    from assistant import agent
+    ModelThrottledException = throttled
+
+    monkeypatch.setenv("ASSISTANT_PROVIDER", "openai")
+    monkeypatch.setenv("LLM_API_KEY", "k1,k2")
+    tools.CALLS.clear()
+    used = []
+
+    class Fake:
+        def __call__(self, prompt):
+            used.append(1)
+            tools.CALLS.append({"tool": "submit_job"})   # a job was already submitted
+            raise ModelThrottledException("429")
+
+    monkeypatch.setattr(agent, "build_model", lambda key=None: key)
+    monkeypatch.setattr(agent, "build_agent", lambda model=None: Fake())
+    with pytest.raises(ModelThrottledException):
+        agent.ask("hi")
+    assert used == [1]
+    tools.CALLS.clear()
