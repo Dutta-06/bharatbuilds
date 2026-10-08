@@ -133,6 +133,12 @@ eu-north-1. Still open, in order:
 
 ## Assistant (Step 13)
 - [ ] Choose how the assistant reaches its model:
+      - **Free, self-hosted on a Hugging Face Space:** `hf-space/` holds a Docker Space (llama.cpp
+        server + a small GGUF Qwen). Create a new Space (SDK: Docker, free CPU), upload those two
+        files, add the secret `LLAMA_API_KEY`, then deploy with `AssistantProvider=openai`,
+        `LlmBaseUrl=https://<user>-<space>.hf.space/v1`, `LlmModelId=local`, `LlmApiKey=<that secret>`.
+        Expect 20-60 s per answer on CPU: API Gateway cuts requests at 30 s, so the Assistant page
+        may time out even if the model is fine. The model id in the Dockerfile is unverified.
       - **Open model via an OpenAI-compatible API (Qwen, Kimi, ...):** deploy with
         `AssistantProvider=openai`, `LlmBaseUrl` (e.g. `https://openrouter.ai/api/v1`),
         `LlmModelId` (the provider's model name) and `LlmApiKey`. The model must support tool
