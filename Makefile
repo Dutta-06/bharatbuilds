@@ -5,7 +5,7 @@ ENDPOINT ?= http://localhost:4566
 LOCAL_ENV := AWS_ENDPOINT_URL=$(ENDPOINT) AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test \
 	AWS_DEFAULT_REGION=ap-south-1 TABLE_NAME=pravaah-main BUCKET_NAME=pravaah-data-local
 
-.PHONY: ci test validate smoke calibrate dashboard-build dashboard-dev assistant-layer assistant-eval layer build local-up local-down local-setup seed api clean deploy deploy-workers forecast-now
+.PHONY: real-data ci test validate smoke calibrate dashboard-build dashboard-dev assistant-layer assistant-eval layer build local-up local-down local-setup seed api clean deploy deploy-workers forecast-now
 STACK ?= pravaah
 
 ci: test validate smoke dashboard-build
@@ -18,6 +18,15 @@ validate:
 
 smoke:
 	$(PYTHON) -m model --region ap-south-1 --hour 2026-10-10T09:00 --gpu-hours 4 --temp 33 --rh 65 --ci 680
+
+# Needs internet (Open-Meteo, Electricity Maps). Laptop or Colab; ELECTRICITYMAPS_TOKEN for real carbon.
+# REPLAY_ARGS="--trace data/trace.alibaba.csv" once you have sampled the real trace (scripts/sample_trace.py).
+real-data:
+	$(PYTHON) scripts/pull_history.py --days 60
+	$(PYTHON) scripts/validate_data.py --history
+	$(PYTHON) scripts/replay.py $(REPLAY_ARGS)
+	@$(PYTHON) -c "import json; d=json.load(open('dashboard/public/replay.json')); print('\nweather/carbon:', d['assumptions'][0]); print('headline:', d['headline'])"
+	@echo "Review dashboard/public/replay.json, then commit it. Quote its numbers only if the line above says history."
 
 calibrate:
 	$(PYTHON) scripts/calibrate_wue.py

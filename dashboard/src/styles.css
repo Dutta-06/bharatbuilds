@@ -73,3 +73,9 @@ button.primary:disabled { opacity: 0.6; cursor: default; }
 .explain { font-size: 15px; }
 td.region { white-space: nowrap; }
 @media (max-width: 600px) { .bar-row { grid-template-columns: 90px 1fr auto; } .hide-sm { display: none; } th, td { padding: 6px 5px; } .map { height: 300px; } }
+
+.actions { margin: 16px 0; }
+@media print {
+  .top, .no-print { display: none !important; }
+  body { background: #fff; color: #000; }
+}

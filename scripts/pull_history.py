@@ -17,7 +17,6 @@ Writes Parquet as well if pyarrow is installed (pip install pyarrow).
 
 import argparse
 import csv
-import json
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -25,39 +24,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
+from backend.history import COLUMNS, rows_for  # noqa: E402
 from model import regions as region_config  # noqa: E402
-from model.wetbulb import wet_bulb  # noqa: E402
-from sources import openmeteo  # noqa: E402
-from sources.carbon import CarbonSourceError, ElectricityMaps, ModelledProfile  # noqa: E402
 
 OUT = ROOT / "data" / "history"
-COLUMNS = ["hour", "t_db", "rh", "p_hpa", "t_wb", "ci_g_per_kwh", "ci_source", "mix_json"]
-
-
-def rows_for(region, days: int, now: datetime) -> list[dict]:
-    if days <= 92:
-        weather = openmeteo.recent(region.lat, region.lon, days)   # up to now, overlaps carbon history
-    else:
-        end = now - timedelta(days=6)                               # archive lags ~5 days
-        weather = openmeteo.history(region.lat, region.lon, end - timedelta(days=days - 1), end)
-    profile = ModelledProfile(region.typical_ci_g_per_kwh or 0.0, region.grid_mix, region.lon)
-    real = {}
-    if region.electricity_maps_zone:
-        try:
-            real = {g.hour: g for g in ElectricityMaps().history(region.electricity_maps_zone)}
-        except CarbonSourceError as e:
-            print(f"  {region.id}: Electricity Maps unavailable ({e}); using modelled carbon", file=sys.stderr)
-    out = []
-    for t, temp, rh, p in weather:
-        hour = t[:13] + ":00"
-        g = real.get(hour) or profile.at(datetime.strptime(hour, "%Y-%m-%dT%H:00"))
-        out.append({
-            "hour": hour, "t_db": temp, "rh": rh, "p_hpa": p,
-            "t_wb": round(wet_bulb(temp, max(rh, 1), p), 2),
-            "ci_g_per_kwh": g.ci_g_per_kwh, "ci_source": g.source,
-            "mix_json": json.dumps(g.mix or region.grid_mix, separators=(",", ":")),
-        })
-    return out
 
 
 def write(region_id: str, rows: list[dict]) -> Path:

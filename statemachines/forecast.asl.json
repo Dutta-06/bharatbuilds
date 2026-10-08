@@ -75,6 +75,16 @@
       "Parameters": {"FunctionName": "${PublishSurfaceArn}", "Payload": {}},
       "ResultPath": "$.published",
       "Retry": [{"ErrorEquals": ["States.ALL"], "IntervalSeconds": 5, "MaxAttempts": 2, "BackoffRate": 2.0}],
+      "Next": "NudgeWaitingJobs"
+    },
+    "NudgeWaitingJobs": {
+      "Type": "Task",
+      "Comment": "Email once when a much better window opened for a job still waiting to start. A failure here must not fail the forecast run.",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {"FunctionName": "${NudgeArn}", "Payload": {}},
+      "ResultPath": "$.nudged",
+      "Retry": [{"ErrorEquals": ["States.ALL"], "IntervalSeconds": 5, "MaxAttempts": 2, "BackoffRate": 2.0}],
+      "Catch": [{"ErrorEquals": ["States.ALL"], "ResultPath": "$.nudge_error", "Next": "Done"}],
       "Next": "Done"
     },
     "Done": {"Type": "Succeed"},

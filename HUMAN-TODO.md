@@ -35,6 +35,9 @@ file in a PR) so everyone can see what's done.
 - [ ] Look up WRI Aqueduct baseline water stress (0-5) for each region's basin
       (https://www.wri.org/applications/aqueduct/water-risk-atlas) and fill
       `water_stress_score`.
+- [ ] `python scripts/set_water_stress.py --list` shows each region's coordinates; look the scores up in the
+      Aqueduct atlas, then `python scripts/set_water_stress.py ap-south-1=<score> eu-north-1=<score> ...`
+      (it validates 0-5 and keeps the file's comments), then `make validate`.
 - [ ] Replace the placeholder `grid_mix` and `typical_ci_g_per_kwh` with real annual
       figures (Electricity Maps zone pages or Ember), then remove `placeholder: true`.
 - [ ] `python scripts/pull_history.py --days 60`, then
@@ -79,8 +82,12 @@ eu-north-1. Still open, in order:
       (the plan's Step 9 "done when").
 
 ## Trace replay (Step 10)
-- [ ] After `pull_history.py` (and, ideally, sampling the real Alibaba trace), rerun
-      `python scripts/replay.py` and commit `dashboard/public/replay.json`. The shipped file uses
+- [ ] `make real-data` (laptop or Colab, needs internet; `export ELECTRICITYMAPS_TOKEN=...` for real
+      carbon) pulls 60 days of history, validates it, reruns the replay and prints what it used. For real
+      carbon over more than the last 24 h, first `aws s3 sync s3://<BucketName>/history data/history`:
+      the deployed `collect_history` Lambda has been saving real hours since deploy day. Add
+      `REPLAY_ARGS="--trace data/trace.alibaba.csv"` once the real trace is sampled. Commit
+      `dashboard/public/replay.json`. The shipped file uses
       **synthetic weather, modelled carbon and a synthetic trace**, and says so on the page.
       Do not quote its numbers in the video or blog until it has been rerun on real data.
 - [ ] Note for the blog: in the synthetic run, shifting time alone saves ~0% water (hot regions
@@ -88,8 +95,9 @@ eu-north-1. Still open, in order:
       region drives most of the savings. Check whether real hourly weather changes this.
 
 ## Forecast models (Step 4)
-- [ ] After a few days of the deployed pipeline (carbon history builds up), run
-      `python scripts/train_forecasts.py --days 60`. It writes `forecasting/models/*.json`
+- [ ] The deployed `collect_history` Lambda (every 6 h) saves real carbon + weather hours to
+      `s3://<BucketName>/history/<region>.csv`. After about 10 days, `aws s3 sync s3://<BucketName>/history
+      data/history`, then (Colab is fine) `python scripts/train_forecasts.py --days 60`. It writes `forecasting/models/*.json`
       only for models that beat both persistence and the provider on the last 7 days, plus
       `metrics.json` with every verdict. Commit them and redeploy; `predict` picks them up.
 - [ ] For the video and blog, quote `forecasting/models/metrics.json` honestly, including

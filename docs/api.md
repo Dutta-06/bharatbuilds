@@ -46,3 +46,19 @@ Anyone signed in can read. Only the `platform-leads` group can write.
 
 A job with `"team": "<team>"` is placed under the policy. The team's weights replace the
 job's. The job may narrow `allowed_regions` but never widen them.
+
+
+## GET /savings?team=ml&days=30
+
+Litres and kg CO2 saved by Pravaah placements over the last `days` (1-365, default 30): per day (with running
+totals) and per team. `team` filters to one team; jobs submitted without a team count as `unassigned`.
+Modelled figures: each job's chosen placement versus running it immediately in its submit region.
+
+## POST /jobs/{id}/reschedule
+
+Moves a job that is **waiting for its start** to a better window, if the newest forecast has one inside the
+job's own constraints (allowed regions, residency, deadline, remaining `max_delay_h`). Returns
+`{"rescheduled": true, "from": {...}, "to": {...}, "improvement": 0.31}` or `{"rescheduled": false, "reason": ...}`.
+`409` if the job is not waiting (already running, done or failed); `502` if the old run could not be stopped, in
+which case nothing is changed. The pipeline also emails (SNS) when a waiting job could improve by 15% or more,
+once per new plan; nothing moves unless someone calls this (the dashboard button does).

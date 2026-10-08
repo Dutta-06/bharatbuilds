@@ -9,10 +9,32 @@ function Pct({ v }) {
     : <span style={{ color: "var(--bad)" }}>{(-v).toFixed(0)}% more</span>;
 }
 
+function Reschedule({ job, onMoved }) {
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState(null);
+  const go = async () => {
+    setBusy(true); setMsg(null);
+    try {
+      const r = await api.reschedule(job.job_id);
+      setMsg(r.rescheduled ? `Moved to ${r.to.region} at ${fmt.hour(r.to.start)} (about ${(100 * r.improvement).toFixed(0)}% better).`
+        : "No better window right now within this job's constraints.");
+      if (r.rescheduled) onMoved();
+    } catch (e) { setMsg(String(e.message || e)); } finally { setBusy(false); }
+  };
+  return (
+    <div className="card">
+      <strong>Waiting to start.</strong> Forecasts keep changing; check whether a better window has opened.{" "}
+      <button className="primary" onClick={go} disabled={busy}>{busy ? "Checking…" : "Move to the better slot"}</button>
+      {msg && <p className="small" role="status" style={{ marginBottom: 0 }}>{msg}</p>}
+    </div>
+  );
+}
+
 export default function Job({ id }) {
   const [job, setJob] = useState(null);
   const [receipt, setReceipt] = useState(null);
   const [error, setError] = useState(null);
+  const [tick, setTick] = useState(0);
   useEffect(() => {
     let alive = true;
     const load = async () => {
@@ -24,7 +46,7 @@ export default function Job({ id }) {
     load();
     const t = setInterval(load, 8000);
     return () => { alive = false; clearInterval(t); };
-  }, [id]);
+  }, [id, tick]);
 
   if (error) return <ErrorBox error={error} />;
   if (!job) return <p className="muted">Loading…</p>;
@@ -36,6 +58,7 @@ export default function Job({ id }) {
       <p className="lede">{job.request.gpu_hours} GPU-hours on {job.request.gpu.toUpperCase()}, due {fmt.hour(job.request.deadline.replace(/Z$/, ""))}.
         Submitted from {job.request.submit_region}.</p>
       <div className="card explain">{p.reason}</div>
+      {job.status === "waiting" && <Reschedule job={job} onMoved={() => setTick((t) => t + 1)} />}
       {view && (
         <div className="grid2">
           <div className="card">
@@ -85,7 +108,7 @@ export default function Job({ id }) {
         </div>
       )}
       <div className="card">
-        <h2 style={{ marginTop: 0 }}>Receipt</h2>
+        <h2 style={{ marginTop: 0 }}>Receipt <a className="small" href={`#/receipt/${job.job_id}`}>share, export or print</a></h2>
         {!receipt && <p className="muted">{job.status === "infeasible" ? "This job was not run." :
           "The final receipt appears here once the job has run. The figures above are the modelled preview."}</p>}
         {receipt && (
