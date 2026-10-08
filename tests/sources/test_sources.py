@@ -87,3 +87,38 @@ def test_openmeteo_forecast_filters_past_and_nulls(monkeypatch):
     rows = openmeteo.forecast(0, 0, hours=48)
     assert [r[0] for r in rows] == [now, "2999-01-01T00:00"]
     json.dumps(rows)
+
+
+def _http_error(code, body=b"{}"):
+    import io
+    import urllib.error
+
+    return urllib.error.HTTPError("http://x", code, "err", {}, io.BytesIO(body))
+
+
+def test_openmeteo_retries_transient_failures(monkeypatch):
+    import io
+    import urllib.error
+
+    monkeypatch.setattr(openmeteo.time, "sleep", lambda s: None)
+    answers = [urllib.error.URLError("dropped"), _http_error(429, b'{"reason":"Minutely limit"}'), _http_error(503),
+               io.BytesIO(b'{"ok": 1}')]
+
+    def fake_urlopen(req, timeout=None):
+        a = answers.pop(0)
+        if isinstance(a, Exception):
+            raise a
+        return a
+
+    monkeypatch.setattr(openmeteo.urllib.request, "urlopen", fake_urlopen)
+    assert openmeteo._get("http://x", {}) == {"ok": 1} and answers == []
+
+
+def test_openmeteo_does_not_retry_daily_limit_or_client_errors(monkeypatch):
+    import urllib.error
+
+    monkeypatch.setattr(openmeteo.time, "sleep", lambda s: pytest.fail("must not wait"))
+    for err in (_http_error(429, b'{"reason":"Daily API request limit exceeded"}'), _http_error(400)):
+        monkeypatch.setattr(openmeteo.urllib.request, "urlopen", lambda req, timeout=None, e=err: (_ for _ in ()).throw(e))
+        with pytest.raises(urllib.error.HTTPError):
+            openmeteo._get("http://x", {})
