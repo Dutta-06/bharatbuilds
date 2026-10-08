@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta, timezone
@@ -12,11 +14,26 @@ ARCHIVE_URL = "https://archive-api.open-meteo.com/v1/archive"
 VARS = ("temperature_2m", "relative_humidity_2m", "surface_pressure")
 
 
+RETRIES = 3          # extra attempts for transient failures (dropped connection, 5xx, per-minute 429)
+BACKOFF_S = (2.0, 5.0, 12.0)
+
+
 def _get(url: str, params: dict, timeout: float = 15.0) -> dict:
     req = urllib.request.Request(f"{url}?{urllib.parse.urlencode(params)}",
                                  headers={"User-Agent": "pravaah/0.1"})
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        return json.load(resp)
+    for attempt in range(RETRIES + 1):
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                return json.load(resp)
+        except urllib.error.HTTPError as e:
+            body = e.read().decode("utf-8", "replace")[:300]
+            transient = e.code in (500, 502, 503, 504) or (e.code == 429 and "daily" not in body.lower())
+            if not transient or attempt == RETRIES:
+                raise
+        except (urllib.error.URLError, TimeoutError, ConnectionError):
+            if attempt == RETRIES:
+                raise
+        time.sleep(BACKOFF_S[attempt])
 
 
 def parse_hour(text: str) -> datetime:
