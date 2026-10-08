@@ -81,9 +81,26 @@ def test_chat_handler_validates_input(monkeypatch):
     assert out["statusCode"] == 200 and json.loads(out["body"])["tool_calls"] == [{"tool": "x", "args": {}}]
 
 
-def test_openai_keys_fail_over_when_rate_limited(monkeypatch):
+@pytest.fixture
+def throttled(monkeypatch):
+    """CI doesn't install strands (assistant deps are separate), so stand in for its exception."""
+    import sys
+    import types
+
+    class ModelThrottledException(Exception):
+        pass
+
+    mods = {"strands": types.ModuleType("strands"), "strands.types": types.ModuleType("strands.types"),
+            "strands.types.exceptions": types.ModuleType("strands.types.exceptions")}
+    mods["strands.types.exceptions"].ModelThrottledException = ModelThrottledException
+    for name, mod in mods.items():
+        monkeypatch.setitem(sys.modules, name, mod)
+    return ModelThrottledException
+
+
+def test_openai_keys_fail_over_when_rate_limited(monkeypatch, throttled):
     from assistant import agent
-    from strands.types.exceptions import ModelThrottledException
+    ModelThrottledException = throttled
 
     monkeypatch.setenv("ASSISTANT_PROVIDER", "openai")
     monkeypatch.setenv("LLM_API_KEY", "k1, k2 ,k3")
@@ -112,9 +129,9 @@ def test_openai_keys_fail_over_when_rate_limited(monkeypatch):
     assert sorted(used) == ["k1", "k3"]
 
 
-def test_failover_never_retries_after_a_tool_ran(monkeypatch):
+def test_failover_never_retries_after_a_tool_ran(monkeypatch, throttled):
     from assistant import agent
-    from strands.types.exceptions import ModelThrottledException
+    ModelThrottledException = throttled
 
     monkeypatch.setenv("ASSISTANT_PROVIDER", "openai")
     monkeypatch.setenv("LLM_API_KEY", "k1,k2")
