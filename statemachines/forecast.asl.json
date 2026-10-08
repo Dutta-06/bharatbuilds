@@ -66,6 +66,15 @@
       },
       "ResultPath": "$.results",
       "Catch": [{"ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "PipelineFailed"}],
+      "Next": "PublishSurface"
+    },
+    "PublishSurface": {
+      "Type": "Task",
+      "Comment": "Static copies of the default /surface grids on S3 so bursts never reach Lambda. A failure here fails the run (and raises the pipeline alarm).",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {"FunctionName": "${PublishSurfaceArn}", "Payload": {}},
+      "ResultPath": "$.published",
+      "Retry": [{"ErrorEquals": ["States.ALL"], "IntervalSeconds": 5, "MaxAttempts": 2, "BackoffRate": 2.0}],
       "Next": "Done"
     },
     "Done": {"Type": "Succeed"},

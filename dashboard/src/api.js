@@ -19,10 +19,26 @@ async function call(path, options = {}) {
   return { status: resp.status, body };
 }
 
+// Standard views (default weights, 1 or 4 GPU-hours) are published to S3 after every forecast run.
+// Reading them keeps traffic bursts off Lambda; anything else, or any failure, uses the API.
+const SURFACE_URL = (import.meta.env.VITE_SURFACE_URL || "").replace(/\/$/, "");
+const STATIC_HOURS = new Set(["1", "4"]);
+
+async function surface(q) {
+  const keys = Object.keys(q);
+  if (SURFACE_URL && keys.length === 1 && keys[0] === "gpu_hours" && STATIC_HOURS.has(String(q.gpu_hours))) {
+    try {
+      const resp = await fetch(`${SURFACE_URL}/gpu-hours-${q.gpu_hours}.json`);
+      if (resp.ok) return await resp.json();
+    } catch { /* fall through to the API */ }
+  }
+  return call("/surface?" + new URLSearchParams(q)).then((r) => r.body);
+}
+
 export const api = {
   base: BASE,
   regions: () => call("/regions").then((r) => r.body.regions),
-  surface: (q) => call("/surface?" + new URLSearchParams(q)).then((r) => r.body),
+  surface,
   submit: (job) => call("/jobs", { method: "POST", body: JSON.stringify(job) }).then((r) => r.body),
   jobs: () => call("/jobs?limit=100").then((r) => r.body.jobs),
   job: (id) => call(`/jobs/${encodeURIComponent(id)}`).then((r) => r.body),

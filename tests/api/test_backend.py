@@ -134,3 +134,27 @@ def test_submit_splittable_job_includes_plan(seeded):
     assert plan["feasible"] and len(plan["chunks"]) <= 2
     assert sum(c["hours"] for c in plan["chunks"]) == 20
     assert "design-only" in plan["note"]
+
+
+def test_publish_surface_matches_api(seeded, monkeypatch):
+    import boto3
+
+    boto3.client("s3").create_bucket(Bucket="surface-test",
+                                     CreateBucketConfiguration={"LocationConstraint": "ap-south-1"})
+    monkeypatch.setenv("SURFACE_BUCKET", "surface-test")
+    out = load_handler("publish_surface")({}, None)
+    assert out["published"] == ["surface/gpu-hours-1.json", "surface/gpu-hours-4.json"]
+    obj = boto3.client("s3").get_object(Bucket="surface-test", Key="surface/gpu-hours-4.json")
+    assert obj["CacheControl"] == "public, max-age=300"
+    import json
+    assert json.loads(obj["Body"].read()) == body(load_handler("get_surface")(http({"gpu_hours": "4"}), None))
+
+
+def test_publish_surface_needs_forecasts(aws, frozen, monkeypatch):
+    import boto3
+
+    boto3.client("s3").create_bucket(Bucket="surface-test",
+                                     CreateBucketConfiguration={"LocationConstraint": "ap-south-1"})
+    monkeypatch.setenv("SURFACE_BUCKET", "surface-test")
+    with pytest.raises(RuntimeError):
+        load_handler("publish_surface")({}, None)
