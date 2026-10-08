@@ -97,7 +97,9 @@ eu-north-1. Still open, in order:
 ## Forecast models (Step 4)
 - [ ] The deployed `collect_history` Lambda (every 6 h) saves real carbon + weather hours to
       `s3://<BucketName>/history/<region>.csv`. After about 10 days, `aws s3 sync s3://<BucketName>/history
-      data/history`, then (Colab is fine) `python scripts/train_forecasts.py --days 60`. It writes `forecasting/models/*.json`
+      data/history`, then train in Colab: upload `notebooks/train_forecasts_colab.ipynb` (standalone, embeds the code it needs),
+      Run all, upload the synced CSVs when asked for them, and download `forecast-models.zip`. Or locally:
+      `python scripts/train_forecasts.py --days 60`. After changing training code, `make notebook` rebuilds the notebook (a test fails if it is stale). It writes `forecasting/models/*.json`
       only for models that beat both persistence and the provider on the last 7 days, plus
       `metrics.json` with every verdict. Commit them and redeploy; `predict` picks them up.
 - [ ] For the video and blog, quote `forecasting/models/metrics.json` honestly, including

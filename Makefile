@@ -5,7 +5,7 @@ ENDPOINT ?= http://localhost:4566
 LOCAL_ENV := AWS_ENDPOINT_URL=$(ENDPOINT) AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test \
 	AWS_DEFAULT_REGION=ap-south-1 TABLE_NAME=pravaah-main BUCKET_NAME=pravaah-data-local
 
-.PHONY: real-data ci test validate smoke calibrate dashboard-build dashboard-dev assistant-layer assistant-eval layer build local-up local-down local-setup seed api clean deploy deploy-workers forecast-now
+.PHONY: notebook real-data ci test validate smoke calibrate dashboard-build dashboard-dev assistant-layer assistant-eval layer build local-up local-down local-setup seed api clean deploy deploy-workers forecast-now
 STACK ?= pravaah
 
 ci: test validate smoke dashboard-build
@@ -21,6 +21,9 @@ smoke:
 
 # Needs internet (Open-Meteo, Electricity Maps). Laptop or Colab; ELECTRICITYMAPS_TOKEN for real carbon.
 # REPLAY_ARGS="--trace data/trace.alibaba.csv" once you have sampled the real trace (scripts/sample_trace.py).
+notebook:
+	$(PYTHON) scripts/build_training_notebook.py
+
 real-data:
 	$(PYTHON) scripts/pull_history.py --days 60
 	$(PYTHON) scripts/validate_data.py --history
