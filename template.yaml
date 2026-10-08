@@ -26,13 +26,26 @@ Parameters:
     Description: How long the proxy workload runs in the chosen region.
   AssistantProvider:
     Type: String
-    AllowedValues: [anthropic, bedrock]
+    AllowedValues: [anthropic, bedrock, openai]
     Default: anthropic
   AnthropicApiKey:
     Type: String
     NoEcho: true
     Default: ""
     Description: For the assistant when AssistantProvider=anthropic (consider Secrets Manager for production)
+  LlmBaseUrl:
+    Type: String
+    Default: ""
+    Description: For AssistantProvider=openai, the OpenAI-compatible base URL (e.g. https://openrouter.ai/api/v1)
+  LlmModelId:
+    Type: String
+    Default: ""
+    Description: For AssistantProvider=openai, the model name at that provider (e.g. a Qwen or Kimi model)
+  LlmApiKey:
+    Type: String
+    NoEcho: true
+    Default: ""
+    Description: For AssistantProvider=openai, the provider's API key (consider Secrets Manager for production)
   BedrockModelId:
     Type: String
     Default: ""
@@ -158,6 +171,9 @@ Resources:
           ASSISTANT_PROVIDER: !Ref AssistantProvider
           ANTHROPIC_API_KEY: !Ref AnthropicApiKey
           BEDROCK_MODEL_ID: !Ref BedrockModelId
+          LLM_BASE_URL: !Ref LlmBaseUrl
+          LLM_MODEL_ID: !Ref LlmModelId
+          LLM_API_KEY: !Ref LlmApiKey
       Policies:
         - Statement:
             - Effect: Allow
@@ -216,6 +232,62 @@ Resources:
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
 
+  # Public, read-only copies of the default /surface grids (see functions/publish_surface).
+  PublicSurfaceBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        IgnorePublicAcls: true
+        BlockPublicPolicy: false
+        RestrictPublicBuckets: false
+      CorsConfiguration:
+        CorsRules:
+          - AllowedOrigins: ["*"]
+            AllowedMethods: [GET, HEAD]
+            AllowedHeaders: ["*"]
+            MaxAge: 300
+
+  PublicSurfaceBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref PublicSurfaceBucket
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal: "*"
+            Action: s3:GetObject
+            Resource: !Sub "${PublicSurfaceBucket.Arn}/surface/*"
+
+  # Used by scripts/sagemaker_train.py (training jobs only; nothing is hosted on SageMaker).
+  SageMakerTrainingRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal: {Service: sagemaker.amazonaws.com}
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: training
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action: [s3:GetObject, s3:PutObject]
+                Resource: !Sub "${DataBucket.Arn}/training/*"
+              - Effect: Allow
+                Action: s3:ListBucket
+                Resource: !GetAtt DataBucket.Arn
+              - Effect: Allow
+                Action: [ecr:GetAuthorizationToken]
+                Resource: "*"
+              - Effect: Allow
+                Action: [ecr:BatchGetImage, ecr:GetDownloadUrlForLayer, ecr:BatchCheckLayerAvailability]
+                Resource: "*"
+              - Effect: Allow
+                Action: [logs:CreateLogGroup, logs:CreateLogStream, logs:PutLogEvents, logs:DescribeLogStreams]
+                Resource: "*"
+
   CoreLayer:
     Type: AWS::Serverless::LayerVersion
     Properties:
@@ -247,6 +319,19 @@ Resources:
       Handler: app.handler
       Policies:
         - DynamoDBCrudPolicy: {TableName: !Ref MainTable}
+
+  PublishSurfaceFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/publish_surface/
+      Handler: app.handler
+      Timeout: 60
+      Environment:
+        Variables:
+          SURFACE_BUCKET: !Ref PublicSurfaceBucket
+      Policies:
+        - DynamoDBReadPolicy: {TableName: !Ref MainTable}
+        - S3WritePolicy: {BucketName: !Ref PublicSurfaceBucket}
 
   ScoreGridFunction:
     Type: AWS::Serverless::Function
@@ -372,11 +457,13 @@ Resources:
         FetchForecastArn: !GetAtt FetchForecastFunction.Arn
         StoreForecastArn: !GetAtt StoreForecastFunction.Arn
         PredictArn: !GetAtt PredictFunction.Arn
+        PublishSurfaceArn: !GetAtt PublishSurfaceFunction.Arn
         RegionList: '["ap-south-1","ap-south-2","ap-southeast-1","eu-north-1","eu-west-1","eu-central-1","us-east-1","us-west-2"]'
       Policies:
         - LambdaInvokePolicy: {FunctionName: !Ref FetchForecastFunction}
         - LambdaInvokePolicy: {FunctionName: !Ref StoreForecastFunction}
         - LambdaInvokePolicy: {FunctionName: !Ref PredictFunction}
+        - LambdaInvokePolicy: {FunctionName: !Ref PublishSurfaceFunction}
         - CloudWatchLogsFullAccess
       Logging:
         Level: ERROR
@@ -546,6 +633,11 @@ Outputs:
       - UseCloudFront
       - !Sub "https://${ApiDistribution.DomainName}"
       - !Sub "https://${PravaahApi}.execute-api.${AWS::Region}.amazonaws.com"
+  SageMakerRoleArn:
+    Value: !GetAtt SageMakerTrainingRole.Arn
+  SurfaceUrl:
+    Description: Public S3 copies of the default /surface grids; set as the dashboard's VITE_SURFACE_URL
+    Value: !Sub "https://${PublicSurfaceBucket.RegionalDomainName}/surface"
   ApiOriginUrl:
     Value: !Sub "https://${PravaahApi}.execute-api.${AWS::Region}.amazonaws.com"
   DashboardUrl:

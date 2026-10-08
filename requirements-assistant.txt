@@ -1,2 +1,2 @@
 # Step 13 assistant only (its own Lambda layer; not in CI: SAM CLI pins an older watchdog).
-strands-agents[anthropic]>=1.50
+strands-agents[anthropic,openai]>=1.50

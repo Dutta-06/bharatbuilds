@@ -79,6 +79,7 @@ def test_store_forecast_emits_emf_metric(aws, frozen, capsys):
 SUBS = {"FetchForecastArn": "arn:aws:lambda:ap-south-1:000000000000:function:f",
         "StoreForecastArn": "arn:aws:lambda:ap-south-1:000000000000:function:s",
         "PredictArn": "arn:aws:lambda:ap-south-1:000000000000:function:p",
+        "PublishSurfaceArn": "arn:aws:lambda:ap-south-1:000000000000:function:ps",
         "ExecutorArn": "arn:aws:lambda:ap-south-1:000000000000:function:e",
         "TopicArn": "arn:aws:sns:ap-south-1:000000000000:t",
         "RegionList": '["ap-south-1","eu-north-1"]'}

@@ -1,9 +1,12 @@
 """Build the Strands agent.
 
-Model: Claude Opus 5.5, via the Anthropic API (ASSISTANT_PROVIDER=anthropic, needs
-ANTHROPIC_API_KEY) or Amazon Bedrock (ASSISTANT_PROVIDER=bedrock, IAM credentials;
-set BEDROCK_MODEL_ID to the Claude Opus 5.5 model or inference-profile id enabled in
-your account and region).
+Model, chosen by ASSISTANT_PROVIDER:
+- anthropic: Claude Opus 5.5 via the Anthropic API (needs ANTHROPIC_API_KEY).
+- bedrock: Claude via Amazon Bedrock (IAM credentials; BEDROCK_MODEL_ID is the model or
+  inference-profile id enabled in your account and region).
+- openai: any OpenAI-compatible chat endpoint, e.g. an open model such as Qwen or Kimi hosted
+  by OpenRouter, Together, Fireworks, DashScope or Moonshot. Needs LLM_BASE_URL, LLM_MODEL_ID
+  and LLM_API_KEY. The model must support tool calling.
 """
 
 from __future__ import annotations
@@ -38,6 +41,14 @@ def build_model():
 
         return BedrockModel(model_id=os.environ.get("BEDROCK_MODEL_ID", f"anthropic.{MODEL_ID}"),
                             region_name=os.environ.get("BEDROCK_REGION", os.environ.get("AWS_REGION")))
+    if provider == "openai":
+        from strands.models.openai import OpenAIModel
+
+        missing = [k for k in ("LLM_BASE_URL", "LLM_MODEL_ID", "LLM_API_KEY") if not os.environ.get(k)]
+        if missing:
+            raise RuntimeError(f"ASSISTANT_PROVIDER=openai needs {', '.join(missing)}")
+        return OpenAIModel(client_args={"api_key": os.environ["LLM_API_KEY"], "base_url": os.environ["LLM_BASE_URL"]},
+                           model_id=os.environ["LLM_MODEL_ID"], params={"max_tokens": 2000})
     from strands.models.anthropic import AnthropicModel
 
     return AnthropicModel(model_id=MODEL_ID, max_tokens=16000)

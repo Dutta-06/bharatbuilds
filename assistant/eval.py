@@ -1,7 +1,8 @@
 """Grade the assistant against evals/assistant.yaml (plan: at least 16 of 20).
 
     pip install -r requirements-assistant.txt
-    ANTHROPIC_API_KEY=... python -m assistant.eval          # or ASSISTANT_PROVIDER=bedrock
+    ANTHROPIC_API_KEY=... python -m assistant.eval          # or ASSISTANT_PROVIDER=bedrock | openai
+    ASSISTANT_PROVIDER=openai LLM_BASE_URL=... LLM_MODEL_ID=... LLM_API_KEY=... python -m assistant.eval
 
 Runs against a stub API on localhost (canned surface/job/receipt responses), so it costs
 model tokens only, about 20 short agent turns, and never touches real data. Each case is
