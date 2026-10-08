@@ -74,6 +74,7 @@ clean:
 
 # --- AWS (Step 8) ---------------------------------------------------------------
 
+MAIN_REGION ?= ap-south-1
 WORKER_REGIONS ?= ap-south-1 ap-south-2 ap-southeast-1 eu-north-1 eu-west-1 eu-central-1 us-east-1 us-west-2
 
 deploy: build
@@ -81,7 +82,7 @@ deploy: build
 
 # Deploy the worker in every region except the main stack's (which has its own).
 deploy-workers:
-	for r in $(WORKER_REGIONS); do \
+	for r in $(filter-out $(MAIN_REGION),$(WORKER_REGIONS)); do \
 		sam deploy --template-file worker.yaml --stack-name pravaah-worker --region $$r \
 			--resolve-s3 --capabilities CAPABILITY_IAM --no-confirm-changeset --no-fail-on-empty-changeset; \
 	done

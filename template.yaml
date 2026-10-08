@@ -37,6 +37,13 @@ Parameters:
     Type: String
     Default: ""
     Description: For AssistantProvider=bedrock, the Claude Opus 5.5 model or inference-profile id enabled in this account
+  EnableCloudFront:
+    Type: String
+    AllowedValues: ["true", "false"]
+    Default: "true"
+    Description: >-
+      "false" skips the CloudFront distribution (new AWS accounts must be verified by
+      Support before they can create one). ApiUrl then points at API Gateway, with no 5 min cache.
   TableReadCapacity:
     Type: Number
     Default: 15
@@ -45,6 +52,7 @@ Parameters:
     Default: 20
 
 Conditions:
+  UseCloudFront: !Equals [!Ref EnableCloudFront, "true"]
   HasEmail: !Not [!Equals [!Ref NotificationEmail, ""]]
 
 Globals:
@@ -238,7 +246,7 @@ Resources:
       CodeUri: functions/store_forecast/
       Handler: app.handler
       Policies:
-        - DynamoDBWritePolicy: {TableName: !Ref MainTable}
+        - DynamoDBCrudPolicy: {TableName: !Ref MainTable}
 
   ScoreGridFunction:
     Type: AWS::Serverless::Function
@@ -406,6 +414,7 @@ Resources:
   # Cache-Control per response, and CloudFront honours it (max 5 min). Writes pass through.
   ApiCachePolicy:
     Type: AWS::CloudFront::CachePolicy
+    Condition: UseCloudFront
     Properties:
       CachePolicyConfig:
         Name: !Sub "${AWS::StackName}-api"
@@ -421,6 +430,7 @@ Resources:
 
   ApiDistribution:
     Type: AWS::CloudFront::Distribution
+    Condition: UseCloudFront
     Properties:
       DistributionConfig:
         Enabled: true
@@ -532,7 +542,10 @@ Resources:
 Outputs:
   ApiUrl:
     Description: Use this (CloudFront) as the dashboard's VITE_API_URL
-    Value: !Sub "https://${ApiDistribution.DomainName}"
+    Value: !If
+      - UseCloudFront
+      - !Sub "https://${ApiDistribution.DomainName}"
+      - !Sub "https://${PravaahApi}.execute-api.${AWS::Region}.amazonaws.com"
   ApiOriginUrl:
     Value: !Sub "https://${PravaahApi}.execute-api.${AWS::Region}.amazonaws.com"
   DashboardUrl:
