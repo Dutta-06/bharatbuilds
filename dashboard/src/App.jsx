@@ -8,21 +8,56 @@ import Savings from "./pages/Savings.jsx";
 import Quality from "./pages/Quality.jsx";
 import Policies from "./pages/Policies.jsx";
 import Assistant from "./pages/Assistant.jsx";
+import { api } from "./api.js";
+import { THEMES, applyTheme, getTheme } from "./theme.js";
+import { clock, parse, relative } from "./time.js";
 
 const PAGES = [
-  ["submit", "Submit"], ["queue", "Queue"], ["surface", "Surface"],
-  ["savings", "Savings"], ["quality", "Forecast quality"], ["assistant", "Assistant"], ["policies", "Policies"],
+  ["submit", "Submit"], ["queue", "Queue"], ["surface", "Surface"], ["savings", "Savings"],
+  ["quality", "Forecasts"], ["assistant", "Assistant"], ["policies", "Policies"],
 ];
 
 function useRoute() {
   const read = () => (window.location.hash.replace(/^#\/?/, "") || "submit").split("/");
   const [route, setRoute] = useState(read);
   useEffect(() => {
-    const on = () => setRoute(read());
+    const on = () => { setRoute(read()); window.scrollTo(0, 0); };
     window.addEventListener("hashchange", on);
     return () => window.removeEventListener("hashchange", on);
   }, []);
   return route;
+}
+
+/** One line that answers "is this data fresh?": when the forecast pipeline last ran. */
+function Pulse() {
+  const [run, setRun] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    const load = () => api.surface({ gpu_hours: 4 }).then((d) => alive && setRun({
+      at: d.regions[0]?.run_id, n: d.regions.length,
+      modelled: d.regions.some((r) => r.ci_sources?.includes("modelled")),
+    })).catch(() => alive && setRun({ error: true }));
+    load();
+    const t = setInterval(load, 5 * 60 * 1000);
+    return () => { alive = false; clearInterval(t); };
+  }, []);
+  if (!run) return <span className="pulse"><span className="led" />checking forecasts</span>;
+  if (run.error || !parse(run.at)) return <span className="pulse"><span className="led bad" />no forecast data</span>;
+  const ageMin = (Date.now() - parse(run.at).getTime()) / 60000;
+  const state = ageMin > 180 ? "bad" : ageMin > 90 || run.modelled ? "warn" : "good";
+  return (
+    <span className="pulse" title={`Last forecast run ${run.at}`}>
+      <span className={`led ${state}`} />
+      <span>forecast {clock(run.at)} <span className="muted">({relative(run.at)})</span></span>
+      <span className="long muted">· {run.n} regions{run.modelled ? " · carbon modelled" : ""}</span>
+    </span>
+  );
+}
+
+function ThemeButton() {
+  const [theme, setTheme] = useState(getTheme);
+  const next = () => { const t = THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length]; applyTheme(t); setTheme(t); };
+  return <button type="button" className="theme-btn" onClick={next} aria-label={`Theme: ${theme}. Switch theme`}>{theme}</button>;
 }
 
 export default function App() {
@@ -37,17 +72,20 @@ export default function App() {
   else if (page === "policies") body = <Policies />;
   else if (page === "assistant") body = <Assistant />;
   else body = <Submit />;
+  const current = page === "jobs" || page === "receipt" ? "queue" : PAGES.some(([id]) => id === page) ? page : "submit";
   return (
     <>
+      <a className="skip" href="#main" onClick={(e) => { e.preventDefault(); document.getElementById("main")?.focus(); }}>Skip to content</a>
       <header className="top">
-        <a className="brand" href="#/submit">Pravaah<small>water- and carbon-aware AI scheduling</small></a>
-        <nav>
-          {PAGES.map(([id, label]) => (
-            <a key={id} href={`#/${id}`} className={page === id || (page === "jobs" && id === "queue") ? "on" : ""}>{label}</a>
-          ))}
+        <div className="top-row">
+          <a className="brand" href="#/submit"><b>Pravaah</b><span>water and carbon aware scheduling</span></a>
+          <div className="top-tools"><Pulse /><ThemeButton /></div>
+        </div>
+        <nav className="tabs" aria-label="Sections">
+          {PAGES.map(([id, label]) => <a key={id} href={`#/${id}`} aria-current={current === id ? "page" : undefined}>{label}</a>)}
         </nav>
       </header>
-      <main>{body}</main>
+      <main id="main" tabIndex={-1}>{body}</main>
     </>
   );
 }

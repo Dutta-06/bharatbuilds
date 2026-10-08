@@ -1,10 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
 import { api } from "../api.js";
-import { costColor, fmt, isDark } from "../colors.js";
-import { ErrorBox, SourcesBanner } from "./common.jsx";
+import { costColor, cssVar, fmt, isDark } from "../colors.js";
+import { useThemeTick } from "../theme.js";
+import { parse, utc, when, whenShort } from "../time.js";
+import { ErrorBox, Loading, PageHead, SourcesBanner } from "./common.jsx";
 
 export default function Surface() {
+  const tick = useThemeTick();
   const [gpuHours, setGpuHours] = useState(4);
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
@@ -16,97 +19,148 @@ export default function Surface() {
   }, [gpuHours]);
 
   const hour = data?.hours?.[idx];
-  const rows = useMemo(() => {
-    if (!data) return [];
-    return data.regions
-      .map((r) => ({ ...r, cell: r.cells.find((c) => c.hour === hour) }))
-      .filter((r) => r.cell)
-      .sort((a, b) => a.cell.cost - b.cell.cost);
-  }, [data, hour]);
   const [lo, hi] = useMemo(() => {
     const all = data ? data.regions.flatMap((r) => r.cells.map((c) => c.cost)) : [1];
     return [Math.min(...all), Math.max(...all)];
   }, [data]);
+  // Cheapest regions first, so the eye lands on where to run.
+  const ordered = useMemo(() => (data ? [...data.regions].sort((a, b) =>
+    Math.min(...a.cells.map((c) => c.cost)) - Math.min(...b.cells.map((c) => c.cost))) : []), [data]);
+  const rows = useMemo(() => ordered.map((r) => ({ ...r, cell: r.cells.find((c) => c.hour === hour) }))
+    .filter((r) => r.cell).sort((a, b) => a.cell.cost - b.cell.cost), [ordered, hour]);
 
   return (
     <>
-      <h1>Cost surface</h1>
-      <p className="lede">The water and carbon price of running {gpuHours} GPU-hours in each region, hour by hour,
-        for the next 48 hours. 1.00 means the same as running now in {data?.baseline?.region || "the baseline region"};
-        lower is better.</p>
+      <PageHead eyebrow="Next 48 hours" title="Cost surface">
+        What running {gpuHours} GPU-hours would cost in each region, hour by hour. 1.00 is the same as running now in{" "}
+        {data?.baseline?.region || "the comparison region"}; lower is better. Select any hour to see the detail.
+      </PageHead>
       <ErrorBox error={error} />
       {data && <SourcesBanner regions={data.regions} />}
-      <div className="card">
-        <div className="grid2">
-          <label>GPU-hours
-            <input type="number" min="0.25" step="0.25" value={gpuHours}
-                   onChange={(e) => setGpuHours(Math.max(0.25, Number(e.target.value) || 1))} />
-          </label>
-          <label>Hour: <strong>{fmt.hour(hour)}</strong>
-            <input type="range" min="0" max={Math.max(0, (data?.hours?.length || 1) - 1)} value={idx}
-                   onChange={(e) => setIdx(Number(e.target.value))} aria-label="Hour of the forecast" />
-          </label>
-        </div>
-        <CostMap rows={rows} lo={lo} hi={hi} />
-        <div className="legend" aria-hidden="true">
-          <span>cheaper</span>
-          <span className="ramp" style={{ background: `linear-gradient(90deg, ${costColor(lo, lo, hi)}, ${costColor(1, lo, hi)}, ${costColor(hi, lo, hi)})` }} />
-          <span>costlier than running now in {data?.baseline?.region}</span>
-        </div>
-      </div>
-      {data?.best && (
-        <div className="card"><span className="muted">Cheapest slot in the next 48 h:</span>{" "}
-          <strong>{data.best.region}</strong> at {fmt.hour(data.best.hour)} (cost {data.best.cost.toFixed(2)})</div>
+      {!data && !error && <Loading rows={4} />}
+      {data && (
+        <>
+          <section className="stack" aria-label="Cost by region and hour">
+            <div className="surface-controls">
+              <div className="field" style={{ width: 120 }}><label className="lbl" htmlFor="gh">GPU-hours</label>
+                <input id="gh" type="number" min="0.25" step="0.25" value={gpuHours}
+                  onChange={(e) => setGpuHours(Math.max(0.25, Number(e.target.value) || 1))} /></div>
+              <div className="field">
+                <label className="lbl" htmlFor="hr">Hour: <span className="num">{when(hour)}</span></label>
+                <input id="hr" type="range" min="0" max={Math.max(0, data.hours.length - 1)} value={idx}
+                  onChange={(e) => setIdx(Number(e.target.value))} aria-valuetext={`${when(hour)}, ${utc(hour)}`} />
+              </div>
+              {data.best && (
+                <div className="small best-note">
+                  <span className="muted">Cheapest slot</span> <b className="num">{data.best.region}</b>{" "}
+                  <span className="num">{whenShort(data.best.hour)}</span> <span className="muted">· cost</span> <b className="num">{data.best.cost.toFixed(2)}</b>
+                </div>)}
+            </div>
+            <p className="small muted only-sm">Scroll sideways to see later hours. Tap a column to select it.</p>
+            <Heat ordered={ordered} hours={data.hours} idx={idx} setIdx={setIdx} lo={lo} hi={hi} best={data.best} tick={tick} />
+            <div className="legend" aria-hidden="true">
+              <span>cheaper</span>
+              <span className="ramp" style={{ background: `linear-gradient(90deg, ${costColor(lo, lo, hi)}, ${costColor(1, lo, hi)}, ${costColor(hi, lo, hi)})` }} />
+              <span>costlier than now in {data.baseline?.region}</span>
+              <span style={{ marginLeft: "auto" }}>outlined cell: cheapest slot</span>
+            </div>
+          </section>
+
+          <section className="surface-detail">
+            <div className="stack" style={{ gap: 10 }}>
+              <div className="section-title" style={{ margin: 0 }}>At {when(hour)} <span className="muted">({utc(hour)})</span></div>
+              <div className="panel tight scroll">
+                <table>
+                  <thead><tr><th>Region</th><th className="num">Cost</th><th className="num">Water L</th>
+                    <th className="num">CO₂ kg</th><th className="num hide-sm">Wet-bulb °C</th><th className="num hide-sm">gCO₂/kWh</th></tr></thead>
+                  <tbody>
+                    {rows.map((r) => (
+                      <tr key={r.id}>
+                        <td className="region"><span className="swatch" style={{ background: costColor(r.cell.cost, lo, hi) }} /><span className="num">{r.id}</span> <span className="muted small hide-sm">{r.name.replace(/^.*\((.*)\)$/, "$1")}</span></td>
+                        <td className="num">{r.cell.cost.toFixed(2)}</td>
+                        <td className="num" title={`range ${fmt.litres(r.cell.litres_low)} to ${fmt.litres(r.cell.litres_high)} L`}>{fmt.litres(r.cell.litres)}</td>
+                        <td className="num" title={`range ${fmt.kg(r.cell.kg_low)} to ${fmt.kg(r.cell.kg_high)} kg`}>{fmt.kg(r.cell.kg_co2)}</td>
+                        <td className="num hide-sm">{r.cell.t_wb}</td>
+                        <td className="num hide-sm">{r.cell.ci == null ? "–" : Math.round(r.cell.ci)}</td>
+                      </tr>))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="small muted">Hover a water or carbon value for its uncertainty range. Water is on-site cooling plus power-plant water.</p>
+            </div>
+            <div className="stack" style={{ gap: 10 }}>
+              <div className="section-title" style={{ margin: 0 }}>Regions at this hour</div>
+              <CostMap rows={rows} lo={lo} hi={hi} tick={tick} />
+            </div>
+          </section>
+        </>
       )}
-      <div className="card scroll">
-        <h2 style={{ marginTop: 0 }}>At {fmt.hour(hour)}</h2>
-        <table>
-          <thead><tr><th>Region</th><th className="num">Cost</th><th className="num">Water (L)</th>
-            <th className="num">CO₂ (kg)</th><th className="num">Wet-bulb °C</th><th className="num">gCO₂/kWh</th></tr></thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.id}>
-                <td className="region"><span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 5, marginRight: 6,
-                  background: costColor(r.cell.cost, lo, hi), border: "1px solid var(--ring)" }} />{r.id} <span className="muted small hide-sm">{r.name}</span></td>
-                <td className="num">{r.cell.cost.toFixed(2)}</td>
-                <td className="num" title={`${fmt.litres(r.cell.litres_low)} – ${fmt.litres(r.cell.litres_high)}`}>{fmt.litres(r.cell.litres)}</td>
-                <td className="num" title={`${fmt.kg(r.cell.kg_low)} – ${fmt.kg(r.cell.kg_high)}`}>{fmt.kg(r.cell.kg_co2)}</td>
-                <td className="num">{r.cell.t_wb}</td>
-                <td className="num">{r.cell.ci == null ? "–" : Math.round(r.cell.ci)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <p className="small muted">Hover a value for its uncertainty range. Water = on-site cooling + power-plant water.</p>
-      </div>
     </>
   );
 }
 
-function CostMap({ rows, lo, hi }) {
+/** Region × hour grid: the surface itself. Cells are mouse targets; the hour slider is the keyboard route. */
+function Heat({ ordered, hours, idx, setIdx, lo, hi, best, tick }) {
+  const cols = hours.length;
+  return (
+    <div className="scroll" style={{ paddingBottom: 6 }}>
+      <div className="heat" style={{ "--cols": cols }} role="img"
+        aria-label={`Cost for ${ordered.length} regions over ${cols} hours. The table below gives the same figures for the selected hour.`}>
+        <div className="heat-axis" aria-hidden="true">
+          <span />
+          {hours.map((h) => {
+            const d = parse(h); const hh = d.getHours();
+            return <span key={h}>{hh % 6 === 0 ? (hh === 0 ? whenShort(h).split(" ")[0] : String(hh).padStart(2, "0")) : ""}</span>;
+          })}
+        </div>
+        {ordered.map((r) => (
+          <div className="heat-row" key={r.id} style={{ "--cols": cols }}>
+            <span className="rid">{r.id}</span>
+            {hours.map((h, i) => {
+              const c = r.cells.find((x) => x.hour === h);
+              if (!c) return <span key={h} />;
+              const isBest = best && best.region === r.id && best.hour === h;
+              return (
+                <button key={h} type="button" tabIndex={-1} onClick={() => setIdx(i)}
+                  className={`heat-cell${i === idx ? " pick" : ""}${isBest ? " best" : ""}`}
+                  style={{ background: costColor(c.cost, lo, hi) }}
+                  title={`${r.id}, ${when(h)}: cost ${c.cost.toFixed(2)}, ${fmt.litres(c.litres)} L, ${fmt.kg(c.kg_co2)} kg CO₂`}
+                  aria-label={`${r.id} ${when(h)} cost ${c.cost.toFixed(2)}`} />
+              );
+            })}
+          </div>))}
+      </div>
+    </div>
+  );
+}
+
+function CostMap({ rows, lo, hi, tick }) {
   const el = useRef(null);
   const map = useRef(null);
   const layer = useRef(null);
+  const tiles = useRef(null);
   useEffect(() => {
-    map.current = L.map(el.current, { worldCopyJump: true, scrollWheelZoom: false }).setView([25, 40], 2);
-    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 6, attribution: "&copy; OpenStreetMap contributors",
-    }).addTo(map.current);
+    map.current = L.map(el.current, { worldCopyJump: true, scrollWheelZoom: false, zoomControl: true, attributionControl: true }).setView([30, 30], 1);
     layer.current = L.layerGroup().addTo(map.current);
     return () => map.current.remove();
   }, []);
   useEffect(() => {
+    // Greyscale basemap that follows the theme, so the colour on the map is only the cost.
+    tiles.current?.remove();
+    const style = isDark() ? "dark_nolabels" : "light_nolabels";
+    tiles.current = L.tileLayer(`https://{s}.basemaps.cartocdn.com/${style}/{z}/{x}/{y}{r}.png`, {
+      maxZoom: 6, subdomains: "abcd", attribution: "&copy; OpenStreetMap contributors &copy; CARTO",
+    }).addTo(map.current);
+    tiles.current.bringToBack();
+  }, [tick]);
+  useEffect(() => {
     layer.current.clearLayers();
-    // A muted outline keeps markers near the neutral midpoint visible over map tiles.
-    const outline = isDark() ? "#c3c2b7" : "#52514e";
+    const outline = cssVar("--ink");
     rows.forEach((r) => {
-      L.circleMarker([r.lat, r.lon], {
-        radius: 11, color: outline, weight: 1.5, fillColor: costColor(r.cell.cost, lo, hi), fillOpacity: 1,
-      }).bindTooltip(
-        `<strong>${r.id}</strong><br>cost ${r.cell.cost.toFixed(2)}<br>${fmt.litres(r.cell.litres)} L water · ${fmt.kg(r.cell.kg_co2)} kg CO₂<br>wet-bulb ${r.cell.t_wb} °C`,
-        { direction: "top" },
-      ).addTo(layer.current);
+      L.circleMarker([r.lat, r.lon], { radius: 9, color: outline, weight: 1.25, fillColor: costColor(r.cell.cost, lo, hi), fillOpacity: 1 })
+        .bindTooltip(`<b>${r.id}</b><br>cost ${r.cell.cost.toFixed(2)}<br>${fmt.litres(r.cell.litres)} L · ${fmt.kg(r.cell.kg_co2)} kg CO₂`, { direction: "top" })
+        .addTo(layer.current);
     });
-  }, [rows, lo, hi]);
-  return <div className="map" ref={el} role="img" aria-label="Map of regions coloured by cost; the table below has the same data" />;
+  }, [rows, lo, hi, tick]);
+  return <div className="map" ref={el} role="img" aria-label="Map of regions coloured by cost; the table has the same figures" />;
 }

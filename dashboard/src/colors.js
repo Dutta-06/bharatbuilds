@@ -1,10 +1,10 @@
-// Diverging scale for relative cost (1.0 = running now in the submit region):
-// blue = cheaper, gray midpoint = same, red = costlier. Poles from the reference palette.
-const LIGHT = { low: "#184f95", mid: "#f0efec", high: "#e34948" };
-const DARK = { low: "#3987e5", mid: "#383835", high: "#e66767" };
+// Diverging cost scale: cheaper than running now (low), the same (mid), costlier (high).
+// The poles and midpoint are CSS tokens, so the scale follows the theme. It is the one place the
+// interface uses hue, because here colour carries data.
+export const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
 function hexToRgb(h) {
-  const n = parseInt(h.slice(1), 16);
+  const n = parseInt(h.replace("#", ""), 16);
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 function mix(a, b, t) {
@@ -20,7 +20,7 @@ export function isDark() {
 
 // lo: best (lowest) cost on screen, hi: worst. 1.0 sits at the neutral midpoint.
 export function costColor(cost, lo, hi) {
-  const p = isDark() ? DARK : LIGHT;
+  const p = { low: cssVar("--scale-low"), mid: cssVar("--scale-mid"), high: cssVar("--scale-high") };
   if (cost <= 1) {
     const span = Math.max(1e-9, 1 - Math.min(lo, 0.999));
     return mix(p.mid, p.low, Math.min(1, (1 - cost) / span));
