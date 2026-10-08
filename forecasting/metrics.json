@@ -1,0 +1,126 @@
+{
+ "trained_at": "2026-10-08T16:31Z",
+ "test_days": 7,
+ "results": [
+  {
+   "target": "t_wb",
+   "region": "ap-south-1",
+   "n_train": 1272,
+   "n_test": 168,
+   "mae_model": 0.0136,
+   "mae_persistence": 0.7273,
+   "mae_provider": 0.0,
+   "use_model": false
+  },
+  {
+   "region": "ap-south-1",
+   "target": "ci",
+   "skipped": "not enough real history"
+  },
+  {
+   "target": "t_wb",
+   "region": "ap-south-2",
+   "n_train": 1272,
+   "n_test": 168,
+   "mae_model": 0.0109,
+   "mae_persistence": 0.491,
+   "mae_provider": 0.0,
+   "use_model": false
+  },
+  {
+   "region": "ap-south-2",
+   "target": "ci",
+   "skipped": "not enough real history"
+  },
+  {
+   "target": "t_wb",
+   "region": "ap-southeast-1",
+   "n_train": 1272,
+   "n_test": 168,
+   "mae_model": 0.005,
+   "mae_persistence": 0.7724,
+   "mae_provider": 0.0,
+   "use_model": false
+  },
+  {
+   "region": "ap-southeast-1",
+   "target": "ci",
+   "skipped": "not enough real history"
+  },
+  {
+   "target": "t_wb",
+   "region": "eu-north-1",
+   "n_train": 1272,
+   "n_test": 168,
+   "mae_model": 0.6426,
+   "mae_persistence": 1.5566,
+   "mae_provider": 0.7349,
+   "use_model": true
+  },
+  {
+   "region": "eu-north-1",
+   "target": "ci",
+   "skipped": "not enough real history"
+  },
+  {
+   "target": "t_wb",
+   "region": "eu-west-1",
+   "n_train": 1272,
+   "n_test": 168,
+   "mae_model": 0.4558,
+   "mae_persistence": 2.7705,
+   "mae_provider": 0.4048,
+   "use_model": false
+  },
+  {
+   "region": "eu-west-1",
+   "target": "ci",
+   "skipped": "not enough real history"
+  },
+  {
+   "target": "t_wb",
+   "region": "eu-central-1",
+   "n_train": 1272,
+   "n_test": 168,
+   "mae_model": 0.487,
+   "mae_persistence": 1.6153,
+   "mae_provider": 0.6598,
+   "use_model": true
+  },
+  {
+   "region": "eu-central-1",
+   "target": "ci",
+   "skipped": "not enough real history"
+  },
+  {
+   "target": "t_wb",
+   "region": "us-east-1",
+   "n_train": 1272,
+   "n_test": 168,
+   "mae_model": 0.8945,
+   "mae_persistence": 1.229,
+   "mae_provider": 0.7363,
+   "use_model": false
+  },
+  {
+   "region": "us-east-1",
+   "target": "ci",
+   "skipped": "not enough real history"
+  },
+  {
+   "target": "t_wb",
+   "region": "us-west-2",
+   "n_train": 1272,
+   "n_test": 168,
+   "mae_model": 1.0701,
+   "mae_persistence": 2.5266,
+   "mae_provider": 0.9023,
+   "use_model": false
+  },
+  {
+   "region": "us-west-2",
+   "target": "ci",
+   "skipped": "not enough real history"
+  }
+ ]
+}
