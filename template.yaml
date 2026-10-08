@@ -50,6 +50,10 @@ Parameters:
     Type: String
     Default: ""
     Description: For AssistantProvider=bedrock, the Claude Opus 5.5 model or inference-profile id enabled in this account
+  AppUrl:
+    Type: String
+    Default: ""
+    Description: The dashboard's URL (Amplify), used for links in alert and nudge emails. Optional.
   EnableCloudFront:
     Type: String
     AllowedValues: ["true", "false"]
@@ -195,6 +199,18 @@ Resources:
         Price:
           Type: HttpApi
           Properties: {ApiId: !Ref PravaahApi, Path: /price, Method: get}
+
+  GetSavingsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/get_savings/
+      Handler: app.handler
+      Policies:
+        - DynamoDBReadPolicy: {TableName: !Ref MainTable}
+      Events:
+        Savings:
+          Type: HttpApi
+          Properties: {ApiId: !Ref PravaahApi, Path: /savings, Method: get}
 
   MainTable:
     Type: AWS::DynamoDB::Table
@@ -343,6 +359,54 @@ Resources:
           Type: HttpApi
           Properties: {ApiId: !Ref PravaahApi, Path: /jobs, Method: post}
 
+  RescheduleJobFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/reschedule_job/
+      Handler: app.handler
+      Timeout: 30
+      Environment:
+        Variables:
+          RUN_STATE_MACHINE_ARN: !Ref RunStateMachine
+      Policies:
+        - DynamoDBCrudPolicy: {TableName: !Ref MainTable}
+        - StepFunctionsExecutionPolicy: {StateMachineName: !GetAtt RunStateMachine.Name}
+        - Statement:
+            - Effect: Allow
+              Action: states:StopExecution
+              Resource: !Sub "arn:${AWS::Partition}:states:${AWS::Region}:${AWS::AccountId}:execution:${RunStateMachine.Name}:*"
+      Events:
+        Reschedule:
+          Type: HttpApi
+          Properties: {ApiId: !Ref PravaahApi, Path: "/jobs/{id}/reschedule", Method: post}
+
+  CollectHistoryFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/collect_history/
+      Handler: app.handler
+      Timeout: 300
+      Policies:
+        - S3CrudPolicy: {BucketName: !Ref DataBucket}
+      Events:
+        Every6Hours:
+          Type: Schedule
+          Properties: {Schedule: "rate(6 hours)", Description: "Keep real carbon history for model training"}
+
+  NudgeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/nudge/
+      Handler: app.handler
+      Timeout: 60
+      Environment:
+        Variables:
+          TOPIC_ARN: !Ref NotificationsTopic
+          APP_URL: !Ref AppUrl
+      Policies:
+        - DynamoDBCrudPolicy: {TableName: !Ref MainTable}
+        - SNSPublishMessagePolicy: {TopicName: !GetAtt NotificationsTopic.TopicName}
+
   GetJobFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -429,12 +493,14 @@ Resources:
         StoreForecastArn: !GetAtt StoreForecastFunction.Arn
         PredictArn: !GetAtt PredictFunction.Arn
         PublishSurfaceArn: !GetAtt PublishSurfaceFunction.Arn
+        NudgeArn: !GetAtt NudgeFunction.Arn
         RegionList: '["ap-south-1","ap-south-2","ap-southeast-1","eu-north-1","eu-west-1","eu-central-1","us-east-1","us-west-2"]'
       Policies:
         - LambdaInvokePolicy: {FunctionName: !Ref FetchForecastFunction}
         - LambdaInvokePolicy: {FunctionName: !Ref StoreForecastFunction}
         - LambdaInvokePolicy: {FunctionName: !Ref PredictFunction}
         - LambdaInvokePolicy: {FunctionName: !Ref PublishSurfaceFunction}
+        - LambdaInvokePolicy: {FunctionName: !Ref NudgeFunction}
         - CloudWatchLogsFullAccess
       Logging:
         Level: ERROR

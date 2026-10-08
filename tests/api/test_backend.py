@@ -158,3 +158,42 @@ def test_publish_surface_needs_forecasts(aws, frozen, monkeypatch):
     monkeypatch.setenv("SURFACE_BUCKET", "surface-test")
     with pytest.raises(RuntimeError):
         load_handler("publish_surface")({}, None)
+
+
+def test_history_merge_never_replaces_real_with_modelled():
+    from backend import history
+
+    def row(hour, ci, source):
+        return {"hour": hour, "t_db": 20.0, "rh": 50.0, "p_hpa": 1000.0, "t_wb": 14.0,
+                "ci_g_per_kwh": ci, "ci_source": source, "mix_json": "{}"}
+
+    old = [row("2026-10-10T00:00", 100.0, "electricitymaps"), row("2026-10-10T01:00", 90.0, "modelled")]
+    new = [row("2026-10-10T00:00", 999.0, "modelled"), row("2026-10-10T01:00", 95.0, "electricitymaps"),
+           row("2026-10-10T02:00", 80.0, "electricitymaps")]
+    merged = history.merge(old, new)
+    assert [(r["hour"][-5:], r["ci_g_per_kwh"], r["ci_source"]) for r in merged] == [
+        ("00:00", 100.0, "electricitymaps"), ("01:00", 95.0, "electricitymaps"), ("02:00", 80.0, "electricitymaps")]
+    assert history.from_csv(history.to_csv(merged)) == merged
+
+
+def test_collect_history_accumulates_in_s3(aws, monkeypatch):
+    import boto3
+
+    from backend import history
+
+    boto3.client("s3").create_bucket(Bucket="hist-test", CreateBucketConfiguration={"LocationConstraint": "ap-south-1"})
+    monkeypatch.setenv("BUCKET_NAME", "hist-test")
+    calls = {"n": 0}
+
+    def fake_rows(region, days, now):
+        calls["n"] += 1
+        hours = ["2026-10-10T00:00", "2026-10-10T01:00"] if calls["n"] <= 8 else ["2026-10-10T01:00", "2026-10-10T02:00"]
+        return [{"hour": h, "t_db": 20.0, "rh": 50.0, "p_hpa": 1000.0, "t_wb": 14.0, "ci_g_per_kwh": 100.0,
+                 "ci_source": "electricitymaps", "mix_json": "{}"} for h in hours]
+
+    monkeypatch.setattr(history, "rows_for", fake_rows)
+    h = load_handler("collect_history")
+    first = h({}, None)
+    assert all(v == {"hours": 2, "real_hours": 2} for v in first.values()) and len(first) == 8
+    second = h({}, None)                                  # overlapping run adds only the new hour
+    assert all(v == {"hours": 3, "real_hours": 3} for v in second.values())

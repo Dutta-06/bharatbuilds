@@ -3,6 +3,7 @@ import Surface from "./pages/Surface.jsx";
 import Submit from "./pages/Submit.jsx";
 import Queue from "./pages/Queue.jsx";
 import Job from "./pages/Job.jsx";
+import Receipt from "./pages/Receipt.jsx";
 import Savings from "./pages/Savings.jsx";
 import Quality from "./pages/Quality.jsx";
 import Policies from "./pages/Policies.jsx";
@@ -28,6 +29,7 @@ export default function App() {
   const [page, arg] = useRoute();
   let body;
   if (page === "jobs" && arg) body = <Job id={decodeURIComponent(arg)} />;
+  else if (page === "receipt" && arg) body = <Receipt id={decodeURIComponent(arg)} />;
   else if (page === "queue") body = <Queue />;
   else if (page === "surface") body = <Surface />;
   else if (page === "savings") body = <Savings />;

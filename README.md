@@ -28,6 +28,7 @@ Environmental Hacks (Bharat Builds Tour), Heat and Water track. Plan:
 | 11 Splittable jobs | OR-Tools CP-SAT plan (exact DP fallback in Lambda, tested to agree); `"splittable": true` on POST /jobs; shown on the job page. Executing split plans is design-only. Aqueduct stress multiplier is wired in, but scores still need looking up |
 | 15-16 Video, blog | Drafts in `docs/` with [placeholders] for real numbers |
 | 12 Policies, auth, public API | Cognito (platform-leads group) + JWT authorizer; GET/PUT /policies/{team} applied on submit; public throttled `GET /price`; [`docs/api.md`](docs/api.md); Policies page (untested without a user pool) |
+| 17 Receipts, savings, nudges | Shareable/printable receipt page (JSON, CSV, print), `GET /savings` with a cumulative chart and per-team table, a nudge email when a much better slot opens for a waiting job and `POST /jobs/{id}/reschedule` to take it, `collect_history` Lambda saving real carbon history to S3, `scripts/set_water_stress.py` |
 | 13 Assistant | Strands agent (Claude Opus 5.5 via Anthropic API or Bedrock) with get_surface / submit_job / get_receipt over the API; POST /chat; Assistant page; 20-case test set + grader (`make assistant-eval`, needs a model key) |
 
 Anything that needs a human (keys, AWS, internet-only runs, source checks) is in

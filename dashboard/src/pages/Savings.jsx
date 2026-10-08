@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { api } from "../api.js";
 import { fmt } from "../colors.js";
 import { ErrorBox } from "./common.jsx";
+import SavingsOverTime from "./SavingsOverTime.jsx";
 
 function Bars({ title, unit, base, sched, format }) {
   const max = Math.max(base, sched, 1e-9);
@@ -102,6 +103,7 @@ export default function Savings() {
           <Bars title="Carbon" unit="kg CO₂" base={base.kg} sched={sched.kg} format={fmt.kg} />
         </div>
       )}
+      <SavingsOverTime />
       {replay ? <Replay data={replay} /> : <div className="card small muted">No replay yet. Run <code>python scripts/replay.py</code>.</div>}
     </>
   );

@@ -13,6 +13,7 @@ from validate_data import validate_history  # noqa: E402
 
 from model import regions  # noqa: E402
 from scheduler.trace import load  # noqa: E402
+from sources import openmeteo  # noqa: E402
 
 
 def test_synthetic_trace_shape():
@@ -51,7 +52,7 @@ def test_shipped_synthetic_trace_loads_as_jobs():
 def test_pull_history_rows_and_validation(tmp_path, monkeypatch):
     monkeypatch.delenv("ELECTRICITYMAPS_TOKEN", raising=False)
     hours = [f"2026-09-{d:02d}T{h:02d}:00" for d in range(1, 31) for h in range(24)]
-    monkeypatch.setattr(pull_history.openmeteo, "recent",
+    monkeypatch.setattr(openmeteo, "recent",
                         lambda lat, lon, days: [(t, 30.0, 60.0, 1005.0) for t in hours])
     region = regions.get("ap-south-1")
     rows = pull_history.rows_for(region, 30, datetime(2026, 10, 1))

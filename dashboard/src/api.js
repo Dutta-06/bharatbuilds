@@ -39,8 +39,10 @@ export const api = {
   base: BASE,
   regions: () => call("/regions").then((r) => r.body.regions),
   surface,
+  savings: (q) => call("/savings?" + new URLSearchParams(q)).then((r) => r.body),
   submit: (job) => call("/jobs", { method: "POST", body: JSON.stringify(job) }).then((r) => r.body),
   jobs: () => call("/jobs?limit=100").then((r) => r.body.jobs),
   job: (id) => call(`/jobs/${encodeURIComponent(id)}`).then((r) => r.body),
+  reschedule: (id) => call(`/jobs/${encodeURIComponent(id)}/reschedule`, { method: "POST", body: "{}" }).then((r) => r.body),
   receipt: (id) => call(`/jobs/${encodeURIComponent(id)}/receipt`),
 };
