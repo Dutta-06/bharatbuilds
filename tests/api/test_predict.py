@@ -24,7 +24,9 @@ def fake_models(tmp_path, monkeypatch):
     serve.load.cache_clear()
 
 
-def test_no_models_means_rows_pass_through(aws, frozen):
+def test_no_models_means_rows_pass_through(aws, frozen, tmp_path, monkeypatch):
+    monkeypatch.setattr(serve, "MODELS", tmp_path)          # an empty models dir, whatever the repo ships
+    serve.load.cache_clear()
     rows = forecasts.collect("eu-north-1", offline=True)
     out = load_handler("predict")({"region": "eu-north-1", "rows": rows}, None)["rows"]
     assert out == rows
@@ -66,3 +68,15 @@ def test_surface_reports_forecast_error(seeded):
     b = body(load_handler("get_surface")(http({"gpu_hours": "1"}), None))
     mumbai = next(r for r in b["regions"] if r["id"] == "ap-south-1")
     assert mumbai["forecast_error"]["n"] == 3 and mumbai["run_id"] == "again"
+
+
+def test_shipped_models_match_their_verdicts():
+    """Every model file in the repo was judged use_model=true; metrics.json agrees with the files."""
+    models = serve.MODELS
+    files = {p.name for p in models.glob("*-*.json") if p.name != "metrics.json"}
+    metrics = json.loads((models / "metrics.json").read_text())["results"] if (models / "metrics.json").exists() else []
+    used = {f"{r['region']}-{r['target']}.json" for r in metrics if r.get("use_model")}
+    assert files == used, f"model files {sorted(files)} do not match the verdicts in metrics.json {sorted(used)}"
+    for name in files:
+        model = json.loads((models / name).read_text())
+        assert model["verdict"]["use_model"] is True
