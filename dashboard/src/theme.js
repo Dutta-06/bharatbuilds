@@ -8,6 +8,11 @@ export function getTheme() {
 }
 export function applyTheme(theme) {
   const root = document.documentElement;
+  if (root.dataset.ready) {   // animate only a user-driven switch, never the first paint
+    root.classList.add("theme-anim");
+    setTimeout(() => root.classList.remove("theme-anim"), 260);
+  }
+  root.dataset.ready = "1";
   if (theme === "system") root.removeAttribute("data-theme"); else root.dataset.theme = theme;
   try { localStorage.setItem(KEY, theme); } catch { /* private window: the choice just won't persist */ }
 }
