@@ -1,0 +1,34 @@
+{
+  "groups": [
+    {"title": "Get started", "pages": [
+      {"slug": "overview", "title": "What Tidewise does", "summary": "What the product does and why placement matters."},
+      {"slug": "quickstart", "title": "Quickstart", "summary": "Place your first job in a few minutes."}
+    ]},
+    {"title": "Concepts", "pages": [
+      {"slug": "how-placement-works", "title": "How placement works", "summary": "How a region and start hour are chosen."},
+      {"slug": "cost-index", "title": "The cost index", "summary": "How water and carbon combine into one number."},
+      {"slug": "water-and-carbon", "title": "Water and carbon", "summary": "Where the litres and kilograms come from."},
+      {"slug": "data-and-forecasts", "title": "Data and forecasts", "summary": "Weather, grid carbon and forecast quality."},
+      {"slug": "receipts", "title": "Receipts", "summary": "What a receipt shows and how to share it."}
+    ]},
+    {"title": "User guide", "pages": [
+      {"slug": "guide-submit", "title": "Submit a job", "summary": "Every field on the Submit page."},
+      {"slug": "guide-surface", "title": "Read the cost surface", "summary": "The heatmap of cost by region and hour."},
+      {"slug": "guide-queue", "title": "Queue and jobs", "summary": "Job statuses, the job page and rescheduling."},
+      {"slug": "guide-savings", "title": "Savings", "summary": "Cumulative savings by team."},
+      {"slug": "guide-policies", "title": "Team policies", "summary": "Set rules that apply to a whole team."},
+      {"slug": "guide-assistant", "title": "Assistant", "summary": "Place and ask about jobs in plain language."},
+      {"slug": "notifications", "title": "Notifications", "summary": "Email alerts and nudges."}
+    ]},
+    {"title": "Reference", "pages": [
+      {"slug": "api", "title": "API reference", "summary": "Every route, field and error."},
+      {"slug": "regions", "title": "Regions", "summary": "The eight regions and their cooling models."},
+      {"slug": "limits", "title": "Limits and accuracy", "summary": "Input limits and how accurate the numbers are."},
+      {"slug": "glossary", "title": "Glossary", "summary": "Terms used in the product."}
+    ]},
+    {"title": "Help", "pages": [
+      {"slug": "faq", "title": "FAQ", "summary": "Answers to common questions."},
+      {"slug": "troubleshooting", "title": "Troubleshooting", "summary": "Fix common problems."}
+    ]}
+  ]
+}

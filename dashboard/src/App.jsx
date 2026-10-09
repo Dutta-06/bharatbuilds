@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { Suspense, lazy, useEffect, useState } from "react";
 import Surface from "./pages/Surface.jsx";
 import Submit from "./pages/Submit.jsx";
 import Queue from "./pages/Queue.jsx";
@@ -8,14 +8,21 @@ import Savings from "./pages/Savings.jsx";
 import Quality from "./pages/Quality.jsx";
 import Policies from "./pages/Policies.jsx";
 import Assistant from "./pages/Assistant.jsx";
+const Docs = lazy(() => import("./pages/Docs.jsx"));
 import { api } from "./api.js";
 import { THEMES, applyTheme, getTheme } from "./theme.js";
 import { clock, parse, relative } from "./time.js";
 
 const PAGES = [
   ["submit", "Submit"], ["queue", "Queue"], ["surface", "Surface"], ["savings", "Savings"],
-  ["quality", "Forecasts"], ["assistant", "Assistant"], ["policies", "Policies"],
+  ["quality", "Forecasts"], ["assistant", "Assistant"], ["policies", "Policies"], ["docs", "Docs"],
 ];
+
+const HELP = {
+  submit: "guide-submit", queue: "guide-queue", surface: "guide-surface", savings: "guide-savings",
+  quality: "data-and-forecasts", assistant: "guide-assistant", policies: "guide-policies",
+  jobs: "guide-queue", receipt: "receipts",
+};
 
 function useRoute() {
   const read = () => (window.location.hash.replace(/^#\/?/, "") || "submit").split("/");
@@ -61,7 +68,7 @@ function ThemeButton() {
 }
 
 export default function App() {
-  const [page, arg] = useRoute();
+  const [page, arg, anchor] = useRoute();
   let body;
   if (page === "jobs" && arg) body = <Job id={decodeURIComponent(arg)} />;
   else if (page === "receipt" && arg) body = <Receipt id={decodeURIComponent(arg)} />;
@@ -71,6 +78,7 @@ export default function App() {
   else if (page === "quality") body = <Quality />;
   else if (page === "policies") body = <Policies />;
   else if (page === "assistant") body = <Assistant />;
+  else if (page === "docs") body = <Suspense fallback={<div className="muted">Loading documentation…</div>}><Docs slug={arg && decodeURIComponent(arg)} anchor={anchor} /></Suspense>;
   else body = <Submit />;
   const current = page === "jobs" || page === "receipt" ? "queue" : PAGES.some(([id]) => id === page) ? page : "submit";
   return (
@@ -86,6 +94,11 @@ export default function App() {
         </nav>
       </header>
       <main id="main" tabIndex={-1}>{body}</main>
+      {HELP[page] && (
+        <footer className="help-foot">
+          <a href={`#/docs/${HELP[page]}`}>Guide for this page</a><span aria-hidden="true">·</span><a href="#/docs/faq">FAQ</a><span aria-hidden="true">·</span><a href="#/docs">All documentation</a>
+        </footer>
+      )}
     </>
   );
 }

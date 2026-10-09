@@ -13,6 +13,8 @@ Environmental Hacks (Bharat Builds Tour), Heat and Water track. Plan:
 [`tidewise-project.md`](tidewise-project.md). How a GPU-hour is priced:
 [`docs/cost-model.md`](docs/cost-model.md).
 
+User docs live in the app (the **Docs** tab). Edit the Markdown in `dashboard/src/docs/content/` and list new pages in `dashboard/src/docs/manifest.json`; `tests/test_docs.py` checks links and that every API route is documented.
+
 ## Status
 
 | Step | State |

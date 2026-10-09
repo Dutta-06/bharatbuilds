@@ -35,7 +35,7 @@ calibrate:
 	$(PYTHON) scripts/calibrate_wue.py
 
 dashboard-build:
-	cd dashboard && npm ci --silent && npm run build --silent
+	cd dashboard && npm ci --silent && npm test --silent && npm run build --silent
 
 # VITE_API_URL defaults to http://localhost:3000 (make api)
 dashboard-dev:
