@@ -1,6 +1,6 @@
 """get_savings: GET /savings?team=ml&days=30
 
-Litres and kg CO2 saved by Pravaah placements, per day (cumulative) and per team.
+Litres and kg CO2 saved by Tidewise placements, per day (cumulative) and per team.
 """
 
 from backend import savings

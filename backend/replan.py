@@ -101,7 +101,7 @@ def nudge_all(now: datetime | None = None, publish=None, app_url: str | None = N
         key = f"{ev['placement'].chosen.region}@{ev['placement'].chosen.start:%Y-%m-%dT%H:%M}"
         if item.get("nudged_for") == key:
             continue                                   # already told them about this exact plan
-        publish("Pravaah: a better slot is available for your job", message(item, ev, app_url))
+        publish("Tidewise: a better slot is available for your job", message(item, ev, app_url))
         item["nudged_for"] = key
         db.put_item(item)
         nudged.append(item["job_id"])

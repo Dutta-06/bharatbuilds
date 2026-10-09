@@ -1,4 +1,4 @@
-# Pravaah — Water- and Carbon-Aware Scheduling for AI Workloads
+# Tidewise — Water- and Carbon-Aware Scheduling for AI Workloads
 
 Environmental Hacks (Bharat Builds Tour, event 02), Heat and Water track, Oct 8–11, 2026.
 
@@ -8,7 +8,7 @@ This document replaces the earlier Chhaanv scope and build plan in full.
 
 ## 1. One line
 
-AI jobs are flexible in time and place. Pravaah runs them where cooling needs the least water and the grid is cleanest, without missing a deadline, and issues a receipt for what was saved.
+AI jobs are flexible in time and place. Tidewise runs them where cooling needs the least water and the grid is cleanest, without missing a deadline, and issues a receipt for what was saved.
 
 ## 2. Problem
 
@@ -18,7 +18,7 @@ City angle (why this is Heat and Water): a data center in NCR evaporates water f
 
 ## 3. Insight
 
-Training, fine-tuning, batch inference and evaluation sweeps have deadlines in hours or days, not seconds. That slack is a free lever. Carbon-aware scheduling already uses it; nobody uses it for water. Pravaah optimizes both, jointly.
+Training, fine-tuning, batch inference and evaluation sweeps have deadlines in hours or days, not seconds. That slack is a free lever. Carbon-aware scheduling already uses it; nobody uses it for water. Tidewise optimizes both, jointly.
 
 ## 4. Scope
 
@@ -233,7 +233,7 @@ Ordered by dependency, not by day. Each step has a goal, tasks, and a "done when
 
 ### Step 10 — Trace replay and headline chart (Expand)
 
-- [ ] Replay the sampled cluster trace through the scheduler offline: naive (submit region, submit time) versus Pravaah.
+- [ ] Replay the sampled cluster trace through the scheduler offline: naive (submit region, submit time) versus Tidewise.
 - [ ] Output: total litres, kg, deadline hit rate, median delay. Two bars for the video.
 - [ ] Sensitivity: how savings change with deadline slack and with weights.
 

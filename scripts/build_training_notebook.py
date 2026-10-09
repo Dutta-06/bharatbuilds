@@ -38,7 +38,7 @@ def cells() -> list[dict]:
     blob = json.dumps(files, indent=0)
     return [
         md("""
-# Pravaah: train the forecast models
+# Tidewise: train the forecast models
 
 Trains the gradient-boosted **wet-bulb** and **carbon** models for every region, judges each against two
 baselines (persistence and the provider's own forecast) on the last 7 days, and keeps a model **only if it

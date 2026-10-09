@@ -75,7 +75,7 @@ export default function Submit() {
   return (
     <>
       <PageHead title="Submit a job">
-        Say how much work it is and when it has to be done. Pravaah picks the region and hour where cooling needs the
+        Say how much work it is and when it has to be done. Tidewise picks the region and hour where cooling needs the
         least water and the grid is cleanest, runs it there, and gives you a receipt.
       </PageHead>
       <ErrorBox error={error} />

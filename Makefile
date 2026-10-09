@@ -1,4 +1,4 @@
-# Pravaah developer commands. CI runs `make ci`, so new checks go here.
+# Tidewise developer commands. CI runs `make ci`, so new checks go here.
 PYTHON ?= python3
 LAYER := build/layer/python
 ENDPOINT ?= http://localhost:4566

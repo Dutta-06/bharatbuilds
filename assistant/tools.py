@@ -58,7 +58,7 @@ def submit_job(gpu_hours: float, deadline: str | None = None, deadline_h: float 
                water_weight: float = 0.5, carbon_weight: float = 0.5,
                allowed_regions: list[str] | None = None, data_residency: bool = False,
                name: str = "") -> dict:
-    """Submit a job; Pravaah places it immediately. Give `deadline` (ISO 8601 UTC) or
+    """Submit a job; Tidewise places it immediately. Give `deadline` (ISO 8601 UTC) or
     `deadline_h` (hours from now). Returns the placement and its plain-language reason."""
     body = {"gpu_hours": gpu_hours, "gpus": gpus, "gpu": gpu, "submit_region": submit_region,
             "weights": {"water": water_weight, "carbon": carbon_weight}, "data_residency": data_residency,

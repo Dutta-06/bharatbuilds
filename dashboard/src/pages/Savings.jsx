@@ -9,7 +9,7 @@ function Bars({ title, unit, base, sched, format }) {
     <div className="panel stack" style={{ gap: 12 }}>
       <div className="section-title" style={{ margin: 0 }}>{title}</div>
       <div className="bars" role="table" aria-label={title}>
-        {[["Run now, here", base, "var(--line-strong)"], ["Pravaah", sched, "var(--ink)"]].map(([label, v, color]) => (
+        {[["Run now, here", base, "var(--line-strong)"], ["Tidewise", sched, "var(--ink)"]].map(([label, v, color]) => (
           <div className="bar-row" role="row" key={label}>
             <span role="cell">{label}</span>
             <div className="bar-track" role="cell"><div className="bar" style={{ width: `${(100 * v) / max}%`, background: color }} /></div>
@@ -17,7 +17,7 @@ function Bars({ title, unit, base, sched, format }) {
           </div>
         ))}
       </div>
-      {base > 0 && <p className="small"><b>{(100 * (base - sched) / base).toFixed(0)}% less</b> with Pravaah.</p>}
+      {base > 0 && <p className="small"><b>{(100 * (base - sched) / base).toFixed(0)}% less</b> with Tidewise.</p>}
     </div>
   );
 }
@@ -29,7 +29,7 @@ function Replay({ data }) {
     <section className="stack" style={{ gap: 20 }}>
       <div className="rule-top">
         <div className="section-title">Trace replay · {h.jobs} jobs</div>
-        <p className="lede">The same queue run two ways: every job started immediately where it was submitted, and placed by Pravaah.</p>
+        <p className="lede">The same queue run two ways: every job started immediately where it was submitted, and placed by Tidewise.</p>
       </div>
       <div className="banner warn small" role="note">
         <strong>Read these with their assumptions.</strong>
@@ -51,7 +51,7 @@ function Replay({ data }) {
           <tbody>
             <tr><td>Shift time only, stay in the submit region</td><td className="num">{ww.time_only_same_region.saved_pct.litres}%</td>
               <td className="num">{ww.time_only_same_region.saved_pct.kg_co2}%</td><td className="num">{ww.time_only_same_region.median_delay_h} h</td></tr>
-            <tr><td>Shift time and region (Pravaah)</td><td className="num">{ww.time_and_region.saved_pct.litres}%</td>
+            <tr><td>Shift time and region (Tidewise)</td><td className="num">{ww.time_and_region.saved_pct.litres}%</td>
               <td className="num">{ww.time_and_region.saved_pct.kg_co2}%</td><td className="num">{ww.time_and_region.median_delay_h} h</td></tr>
           </tbody>
         </table></div>

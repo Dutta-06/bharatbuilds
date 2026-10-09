@@ -1,4 +1,4 @@
-# AWS regions Pravaah can place jobs in.
+# AWS regions Tidewise can place jobs in.
 #
 # Step 1 needs: location (for weather), cooling type, and which disclosed WUE to
 # calibrate against. Step 2 fills in the rest from real data:

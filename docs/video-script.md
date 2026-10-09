@@ -16,16 +16,16 @@ coastal or Nordic night (~8 °C).
 > Stockholm it's close to [zero] on site. The colony next door draws on the same
 > stressed supply, and its peak demand falls on exactly those afternoons."
 
-## 0:30-1:30 Pravaah in use
+## 0:30-1:30 Tidewise in use
 **Visual:** dashboard → Submit: 4 GPU-hours, deadline Friday, submitted from Mumbai.
 
 > "Most AI work isn't urgent. Training, fine-tuning, evaluation sweeps all have
-> deadlines in hours or days. Pravaah uses that slack."
+> deadlines in hours or days. Tidewise uses that slack."
 
 **Visual:** Surface page, drag the scrubber across 48 h. Blue regions are cheaper than
 "run now, here".
 
-> "Every hour, Pravaah forecasts wet-bulb temperature and grid carbon for [8] AWS
+> "Every hour, Tidewise forecasts wet-bulb temperature and grid carbon for [8] AWS
 > regions, 48 hours ahead, and prices each region-hour in litres and kilograms."
 
 **Visual:** Job page: the explanation sentence, options considered, and the two headline

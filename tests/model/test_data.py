@@ -58,7 +58,7 @@ def test_write_scale_keeps_file_valid(tmp_path):
     assert loaded["ap-southeast-1"].wue_scale == 0.75
     assert loaded["us-west-2"].wue_scale == 1.2
     assert loaded["ap-south-1"].wue_scale == 1.0
-    assert "# AWS regions Pravaah" in text            # comments survive
+    assert "# AWS regions Tidewise" in text            # comments survive
     errors, _ = validate(root)
     assert errors == []
 

@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
-Description: Pravaah - water- and carbon-aware scheduling for AI workloads
+Description: Tidewise - water- and carbon-aware scheduling for AI workloads
 
 # Build with `make build` (packs model/, scheduler/, sources/, backend/, data and
 # PyYAML into the core layer, then runs `sam build`). Data model: docs/data-model.md.
@@ -558,7 +558,7 @@ Resources:
     Properties:
       DistributionConfig:
         Enabled: true
-        Comment: Pravaah API
+        Comment: Tidewise API
         PriceClass: PriceClass_200   # includes India
         Origins:
           - Id: api

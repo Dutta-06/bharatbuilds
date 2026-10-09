@@ -1,4 +1,4 @@
-# Pravaah API
+# Tidewise API
 
 Base URL: the stack's `ApiUrl` output (CloudFront). JSON in, JSON out. CORS is open.
 All hours are UTC, written `YYYY-MM-DDTHH:00`.
@@ -50,7 +50,7 @@ job's. The job may narrow `allowed_regions` but never widen them.
 
 ## GET /savings?team=ml&days=30
 
-Litres and kg CO2 saved by Pravaah placements over the last `days` (1-365, default 30): per day (with running
+Litres and kg CO2 saved by Tidewise placements over the last `days` (1-365, default 30): per day (with running
 totals) and per team. `team` filters to one team; jobs submitted without a team count as `unassigned`.
 Modelled figures: each job's chosen placement versus running it immediately in its submit region.
 

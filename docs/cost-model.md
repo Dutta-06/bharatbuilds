@@ -1,4 +1,4 @@
-# How Pravaah prices a GPU-hour in water and carbon
+# How Tidewise prices a GPU-hour in water and carbon
 
 One page, for anyone on the team who has to explain this to a judge. Every
 number below lives in [`model/coefficients.yaml`](../model/coefficients.yaml)
