@@ -8,11 +8,41 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 import urllib.error
 import urllib.parse
 import urllib.request
 
 CALLS: list[dict] = []   # every tool call this process made (the eval reads it)
+
+# A request that times out leaves its model thread running. Each request gets a number, its worker thread is
+# bound to it, and the tools refuse to act once the request is over, so a late answer cannot submit a job.
+CURRENT = 0
+_bound = threading.local()
+
+
+def begin_request() -> int:
+    global CURRENT
+    CURRENT += 1
+    CALLS.clear()
+    return CURRENT
+
+
+def bind(request: int) -> None:
+    _bound.request = request
+
+
+def expire() -> None:
+    """The request is over (timed out): any tool call from its still-running thread is refused."""
+    global CURRENT
+    CURRENT += 1
+
+
+def _expired() -> bool:
+    return getattr(_bound, "request", CURRENT) != CURRENT      # unbound threads (tests, the eval CLI) never expire
+
+
+EXPIRED = {"error": "This request already ended, so nothing was done."}
 
 
 def api_base() -> str:
@@ -37,18 +67,26 @@ def get_surface(gpu_hours: float = 1.0, w_water: float = 0.5, w_carbon: float = 
                 baseline: str = "ap-south-1") -> dict:
     """Cost of running gpu_hours in every region, hour by hour, for the next 48 h. Summarised:
     the best slot, the baseline (run now in `baseline`), and each region's cheapest hour."""
+    if _expired():
+        return EXPIRED
     CALLS.append({"tool": "get_surface", "args": {"gpu_hours": gpu_hours, "w_water": w_water,
                                                    "w_carbon": w_carbon, "baseline": baseline}})
     raw = _call("GET", "/surface?" + urllib.parse.urlencode(
         {"gpu_hours": gpu_hours, "w_water": w_water, "w_carbon": w_carbon, "baseline": baseline}))
     if "error" in raw:
         return raw
+    first = min((c["hour"] for r in raw["regions"] for c in r["cells"]), default=None)
+    right_now = sorted(({"region": r["id"], "hour": c["hour"], "cost": c["cost"], "litres": c["litres"], "kg_co2": c["kg_co2"]}
+                        for r in raw["regions"] for c in r["cells"] if c["hour"] == first), key=lambda x: x["cost"])[:3]
     best_per_region = []
     for r in raw["regions"]:
         cell = min(r["cells"], key=lambda c: c["cost"])
         best_per_region.append({"region": r["id"], "hour": cell["hour"], "cost": cell["cost"],
                                 "litres": cell["litres"], "kg_co2": cell["kg_co2"]})
-    return {"best": raw["best"], "baseline": raw["baseline"], "window_end": raw["window_end"],
+    return {"note": "cost is a unitless index, not money: 1.0 means running now in the baseline region, lower is better. "
+                    "Quote litres of water and kg of CO2, never a currency. 'right_now' ranks regions for the current hour; "
+                    "'best' is the cheapest slot in the whole 48 hours.",
+            "right_now": right_now, "best": raw["best"], "baseline": raw["baseline"], "window_end": raw["window_end"],
             "best_per_region": sorted(best_per_region, key=lambda x: x["cost"]),
             "data_sources": sorted({s for r in raw["regions"] for s in r["weather_sources"] + r["ci_sources"]})}
 
@@ -60,6 +98,8 @@ def submit_job(gpu_hours: float, deadline: str | None = None, deadline_h: float 
                name: str = "") -> dict:
     """Submit a job; Tidewise places it immediately. Give `deadline` (ISO 8601 UTC) or
     `deadline_h` (hours from now). Returns the placement and its plain-language reason."""
+    if _expired():
+        return EXPIRED
     body = {"gpu_hours": gpu_hours, "gpus": gpus, "gpu": gpu, "submit_region": submit_region,
             "weights": {"water": water_weight, "carbon": carbon_weight}, "data_residency": data_residency,
             "name": name or "via assistant"}
@@ -80,5 +120,7 @@ def submit_job(gpu_hours: float, deadline: str | None = None, deadline_h: float 
 
 def get_receipt(job_id: str) -> dict:
     """The receipt for a job: final (measured) once it has run, otherwise the modelled preview."""
+    if _expired():
+        return EXPIRED
     CALLS.append({"tool": "get_receipt", "args": {"job_id": job_id}})
     return _call("GET", f"/jobs/{urllib.parse.quote(job_id)}/receipt")

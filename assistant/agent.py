@@ -6,7 +6,8 @@ Model, chosen by ASSISTANT_PROVIDER:
   inference-profile id enabled in your account and region).
 - openai: any OpenAI-compatible chat endpoint, e.g. an open model such as Qwen or Kimi hosted
   by OpenRouter, Together, Fireworks, DashScope or Moonshot. Needs LLM_BASE_URL, LLM_MODEL_ID
-  and LLM_API_KEY. The model must support tool calling.
+  and LLM_API_KEY. The model must support tool calling. LLM_REASONING_EFFORT (default low; off to omit)
+  and LLM_MAX_TOKENS (default 700) keep answers fast.
 """
 
 from __future__ import annotations
@@ -30,7 +31,9 @@ and get_receipt (what a job saved). Turn the user's request into a correctly con
 - Region limits: honour "only in India/EU/US" with allowed_regions or data_residency.
 - If the request is missing the amount of work or the deadline, ask one short question instead of guessing.
 Submit only when the user asks to run or schedule something; for "when/where would it be best" questions,
-use get_surface and answer without submitting.
+use get_surface once and answer from its result without submitting. "Right now" means the `right_now` list;
+"best" or "cheapest slot" means the `best` field. A cost is a unitless index (1.0 = running now in the baseline
+region, lower is better), never money: do not add a currency, and quote litres of water and kg of CO2 instead.
 Reply in the user's language, in at most three sentences, and always end with what happens next
 (for example when the job will start, or what you need from them)."""
 
@@ -53,8 +56,13 @@ def build_model(key: str | None = None):
         missing = [k for k in ("LLM_BASE_URL", "LLM_MODEL_ID", "LLM_API_KEY") if not os.environ.get(k)]
         if missing:
             raise RuntimeError(f"ASSISTANT_PROVIDER=openai needs {', '.join(missing)}")
+        params = {"max_tokens": int(os.environ.get("LLM_MAX_TOKENS", "700"))}     # replies are at most three sentences
+        effort = os.environ.get("LLM_REASONING_EFFORT", "low")
+        if effort and effort != "off":
+            # OpenRouter's unified setting: reasoning models think for fewer tokens (faster); others ignore it.
+            params["extra_body"] = {"reasoning": {"effort": effort}}
         return OpenAIModel(client_args={"api_key": key or llm_keys()[0], "base_url": os.environ["LLM_BASE_URL"]},
-                           model_id=os.environ["LLM_MODEL_ID"], params={"max_tokens": 2000})
+                           model_id=os.environ["LLM_MODEL_ID"], params=params)
     from strands.models.anthropic import AnthropicModel
 
     return AnthropicModel(model_id=MODEL_ID, max_tokens=16000)
