@@ -13,18 +13,29 @@ export default function Assistant() {
   const [log, setLog] = useState([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  const [retrying, setRetrying] = useState(false);
   const end = useRef(null);
   useEffect(() => { end.current?.scrollIntoView({ block: "nearest" }); }, [log, busy]);
+  async function ask(q) {
+    const resp = await fetch(`${api.base}/chat`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ message: q }) });
+    const body = await resp.json().catch(() => ({}));
+    return { resp, body };
+  }
   async function send(text) {
     const q = (text ?? message).trim();
     if (!q || busy) return;
     setBusy(true); setError(null); setMessage("");
     try {
-      const resp = await fetch(`${api.base}/chat`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ message: q }) });
-      const body = await resp.json().catch(() => ({}));
-      if (!resp.ok) throw new Error(body.error || body.message || (resp.status >= 500 ? "The assistant could not answer. Try again in a moment, or use the Submit page." : `API error ${resp.status}`));
+      let { resp, body } = await ask(q);
+      // A free model is sometimes slow and the request times out. If nothing was submitted, one retry
+      // usually reaches a faster model. Never retry when a job may already have been placed.
+      if (resp.status === 504 && !/Queue/.test(body.error || "")) {
+        setRetrying(true);
+        ({ resp, body } = await ask(q));
+      }
+      if (!resp.ok) throw new Error(body.error || body.message || `API error ${resp.status}`);
       setLog((l) => [...l, { q, a: body.reply, calls: body.tool_calls }]);
-    } catch (err) { setError(err); setMessage(q); } finally { setBusy(false); }
+    } catch (err) { setError(err); setMessage(q); } finally { setBusy(false); setRetrying(false); }
   }
   return (
     <>
@@ -44,7 +55,7 @@ export default function Assistant() {
             <div className="msg bot"><div className="who">Tidewise</div><div className="body">{t.a}
               {t.calls?.some((c) => c.tool === "submit_job") && <p className="small" style={{ marginTop: 8 }}><a href="#/queue">Open the queue to see it</a></p>}</div></div>
           </React.Fragment>))}
-        {busy && <div className="msg bot"><div className="who">Tidewise</div><div className="body muted">Reading the forecast…</div></div>}
+        {busy && <div className="msg bot"><div className="who">Tidewise</div><div className="body muted">{retrying ? "That was slow. Trying once more…" : "Reading the forecast…"}</div></div>}
         <div ref={end} />
       </div>
       <ErrorBox error={error} />

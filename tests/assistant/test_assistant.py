@@ -26,6 +26,8 @@ def test_tools_against_stub(stub_api):
     s = tools.get_surface(gpu_hours=4)
     assert s["best"]["region"] == "eu-north-1"
     assert s["best_per_region"][0]["region"] == "eu-north-1"
+    assert "not money" in s["note"] and s["right_now"] and len(s["right_now"]) <= 3
+    assert len({r["hour"] for r in s["right_now"]}) == 1
     j = tools.submit_job(gpu_hours=8, deadline="2026-10-09T18:00Z", water_weight=1, carbon_weight=0)
     assert j["status"] == "placed" and j["chosen"]["region"] == "eu-north-1"
     r = tools.get_receipt("stub01")
@@ -150,3 +152,15 @@ def test_failover_never_retries_after_a_tool_ran(monkeypatch, throttled):
         agent.ask("hi")
     assert used == [1]
     tools.CALLS.clear()
+
+
+def test_openai_provider_asks_for_fast_short_answers(monkeypatch):
+    pytest.importorskip("strands")      # the real class is only installed with requirements-assistant.txt
+    from assistant import agent
+
+    for k, v in {"ASSISTANT_PROVIDER": "openai", "LLM_BASE_URL": "http://x/v1", "LLM_MODEL_ID": "m", "LLM_API_KEY": "k"}.items():
+        monkeypatch.setenv(k, v)
+    cfg = agent.build_model().get_config()
+    assert cfg["params"]["max_tokens"] == 700 and cfg["params"]["extra_body"] == {"reasoning": {"effort": "low"}}
+    monkeypatch.setenv("LLM_REASONING_EFFORT", "off")
+    assert "extra_body" not in agent.build_model().get_config()["params"]
