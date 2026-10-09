@@ -41,10 +41,10 @@ export default function Assistant() {
         {log.map((t, i) => (
           <React.Fragment key={i}>
             <div className="msg you"><div className="who">You</div><div className="body">{t.q}</div></div>
-            <div className="msg bot"><div className="who">Pravaah</div><div className="body">{t.a}
+            <div className="msg bot"><div className="who">Tidewise</div><div className="body">{t.a}
               {t.calls?.some((c) => c.tool === "submit_job") && <p className="small" style={{ marginTop: 8 }}><a href="#/queue">Open the queue to see it</a></p>}</div></div>
           </React.Fragment>))}
-        {busy && <div className="msg bot"><div className="who">Pravaah</div><div className="body muted">Reading the forecast…</div></div>}
+        {busy && <div className="msg bot"><div className="who">Tidewise</div><div className="body muted">Reading the forecast…</div></div>}
         <div ref={end} />
       </div>
       <ErrorBox error={error} />

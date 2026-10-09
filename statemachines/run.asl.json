@@ -20,7 +20,7 @@
     "NotifyInfeasible": {
       "Type": "Task",
       "Resource": "arn:aws:states:::sns:publish",
-      "Parameters": {"TopicArn": "${TopicArn}", "Subject": "Pravaah: job could not be placed",
+      "Parameters": {"TopicArn": "${TopicArn}", "Subject": "Tidewise: job could not be placed",
                      "Message.$": "States.Format('Job {} could not be placed: {}', $.job_id, $.reason)"},
       "ResultPath": null,
       "Next": "NotRun"
@@ -29,7 +29,7 @@
     "NotifyPlaced": {
       "Type": "Task",
       "Resource": "arn:aws:states:::sns:publish",
-      "Parameters": {"TopicArn": "${TopicArn}", "Subject": "Pravaah: job placed",
+      "Parameters": {"TopicArn": "${TopicArn}", "Subject": "Tidewise: job placed",
                      "Message.$": "States.Format('Job {} placed in {} from {} UTC. {}', $.job_id, $.region, $.start, $.reason)"},
       "ResultPath": null,
       "Next": "WaitForSlot"
@@ -38,7 +38,7 @@
     "NotifyStarted": {
       "Type": "Task",
       "Resource": "arn:aws:states:::sns:publish",
-      "Parameters": {"TopicArn": "${TopicArn}", "Subject": "Pravaah: job started",
+      "Parameters": {"TopicArn": "${TopicArn}", "Subject": "Tidewise: job started",
                      "Message.$": "States.Format('Job {} is starting in {}.', $.job_id, $.region)"},
       "ResultPath": null,
       "Next": "Launch"
@@ -67,7 +67,7 @@
     "NotifyFinished": {
       "Type": "Task",
       "Resource": "arn:aws:states:::sns:publish",
-      "Parameters": {"TopicArn": "${TopicArn}", "Subject": "Pravaah: job finished, receipt ready",
+      "Parameters": {"TopicArn": "${TopicArn}", "Subject": "Tidewise: job finished, receipt ready",
                      "Message.$": "States.Format('Job {} ran in {}. Versus running now in the submit region it saved {} L of water ({}%) and {} kg CO2 ({}%), modelled. Receipt: /jobs/{}/receipt', $.job_id, $.finished.summary.ran_in, $.finished.summary.saved_litres, $.finished.summary.saved_litres_pct, $.finished.summary.saved_kg_co2, $.finished.summary.saved_kg_co2_pct, $.job_id)"},
       "ResultPath": null,
       "Next": "Succeeded"
@@ -84,7 +84,7 @@
     "NotifyFailed": {
       "Type": "Task",
       "Resource": "arn:aws:states:::sns:publish",
-      "Parameters": {"TopicArn": "${TopicArn}", "Subject": "Pravaah: job failed",
+      "Parameters": {"TopicArn": "${TopicArn}", "Subject": "Tidewise: job failed",
                      "Message.$": "States.Format('Job {} failed: {}', $.job_id, $.error.Cause)"},
       "ResultPath": null,
       "Next": "Failed"

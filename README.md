@@ -1,12 +1,16 @@
-# Pravaah
+# Tidewise
+
+> Formerly called Pravaah. Only the name changed: AWS resources (stack `pravaah`, table `pravaah-main`, state machines
+> `pravaah-forecast` and `pravaah-run`, functions, alarms) keep their original `pravaah-` names so the deployed app,
+> its data and its URLs are untouched. Renaming them would make CloudFormation recreate the stack.
 
 Water- and carbon-aware scheduling for AI workloads. AI jobs are flexible in
-time and place. Pravaah runs them where cooling needs the least water and the
+time and place. Tidewise runs them where cooling needs the least water and the
 grid is cleanest, without missing a deadline, and issues a receipt for what was
 saved.
 
 Environmental Hacks (Bharat Builds Tour), Heat and Water track. Plan:
-[`pravaah-project.md`](pravaah-project.md). How a GPU-hour is priced:
+[`tidewise-project.md`](tidewise-project.md). How a GPU-hour is priced:
 [`docs/cost-model.md`](docs/cost-model.md).
 
 ## Status
@@ -21,7 +25,7 @@ Environmental Hacks (Bharat Builds Tour), Heat and Water track. Plan:
 | 5 Forecast pipeline | `pravaah-forecast` state machine, hourly schedule, verified in Step Functions Local |
 | 7 Executor | `pravaah-run` state machine (Wait, cross-region worker, receipt, SNS), verified in Step Functions Local |
 | 9 Dashboard | React + Vite + Leaflet: Submit, Queue, Surface, Job/receipt, Savings, Forecast quality |
-| 10 Trace replay | `scripts/replay.py`: naive vs Pravaah, deadline hit rate, median delay, when-vs-where, slack and weight sensitivity; shown on the Savings page with its assumptions |
+| 10 Trace replay | `scripts/replay.py`: naive vs Tidewise, deadline hit rate, median delay, when-vs-where, slack and weight sensitivity; shown on the Savings page with its assumptions |
 | 4 Forecast models | Gradient-boosted wet-bulb and carbon models judged against persistence and the provider; exported to JSON for Lambda; `predict` step in the pipeline; per-run forecast error. Training needs real history |
 | 8 Deploy infra | In the template: CloudFront (5 min cache on reads), CloudWatch dashboard, 3 alarms → SNS. Deploying needs the AWS account (HUMAN-TODO) |
 | 14 Hardening | Dashboard error states, alarms, `scripts/load_test.py`, docs below. Feature freeze and the three-in-a-row check are on the team |

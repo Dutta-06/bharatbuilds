@@ -1,6 +1,6 @@
 # Builder Center blog: draft
 
-Working title: **Pravaah: scheduling AI jobs for less water, not just less carbon**
+Working title: **Tidewise: scheduling AI jobs for less water, not just less carbon**
 
 Topics follow plan Step 16. Replace every [bracket] with numbers from real runs.
 
@@ -8,7 +8,7 @@ Topics follow plan Step 16. Replace every [bracket] with numbers from real runs.
 - Evaporative cooling: water per kWh rises steeply with outdoor wet-bulb.
 - Grid electricity carries its own water (coal and nuclear plants evaporate litres per kWh).
 - Carbon-aware schedulers exist (Carbon Aware SDK, KEDA's carbon-aware scaler). Nobody
-  schedules for water. Pravaah does both.
+  schedules for water. Tidewise does both.
 
 ## Why wet-bulb, not temperature
 - A cooling tower can only cool towards wet-bulb, so the physics curve is

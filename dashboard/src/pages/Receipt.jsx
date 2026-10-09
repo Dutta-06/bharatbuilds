@@ -42,8 +42,8 @@ export default function Receipt({ id }) {
       <div className="panel"><dl className="kv">{rows.filter(([, v]) => v !== "" && v != null).map(([k, v]) => (<React.Fragment key={k}><dt>{k}</dt><dd>{String(v ?? "")}</dd></React.Fragment>))}</dl></div>
       <div className="actions no-print">
         <button className="primary" onClick={copy}>{copied ? "Link copied" : "Copy link"}</button>
-        <button className="btn" onClick={() => download(`pravaah-receipt-${job.job_id}.json`, JSON.stringify({ job, receipt }, null, 2), "application/json")}>Download JSON</button>
-        <button className="btn" onClick={() => download(`pravaah-receipt-${job.job_id}.csv`, toCsv(rows), "text/csv")}>Download CSV</button>
+        <button className="btn" onClick={() => download(`tidewise-receipt-${job.job_id}.json`, JSON.stringify({ job, receipt }, null, 2), "application/json")}>Download JSON</button>
+        <button className="btn" onClick={() => download(`tidewise-receipt-${job.job_id}.csv`, toCsv(rows), "text/csv")}>Download CSV</button>
         <button className="btn" onClick={() => window.print()}>Print or save as PDF</button>
       </div>
       <p className="small muted" style={{ maxWidth: "70ch" }}>Savings compare running the job immediately in its comparison region. Water and carbon are modelled from forecast

@@ -13,7 +13,7 @@ def test_sets_only_the_named_region_and_keeps_comments():
     out = ws.apply(text, {"eu-north-1": 0.4})
     assert out.count("water_stress_score: 0.4") == 1
     assert out.count("water_stress_score: null") == text.count("water_stress_score: null") - 1
-    assert out.startswith("# AWS regions Pravaah can place jobs in.")
+    assert out.startswith("# AWS regions Tidewise can place jobs in.")
     import yaml
     scores = {r["id"]: r["water_stress_score"] for r in yaml.safe_load(out)["regions"]}
     assert scores["eu-north-1"] == 0.4 and scores["ap-south-1"] is None

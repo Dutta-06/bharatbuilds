@@ -8,7 +8,7 @@ async function call(path, options = {}) {
       headers: { "content-type": "application/json", ...(options.headers || {}) },
     });
   } catch {
-    throw new Error(`Can't reach the Pravaah API at ${BASE}. Is it running?`);
+    throw new Error(`Can't reach the Tidewise API at ${BASE}. Is it running?`);
   }
   const text = await resp.text();
   let body = null;

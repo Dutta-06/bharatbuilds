@@ -78,7 +78,7 @@ export default function App() {
       <a className="skip" href="#main" onClick={(e) => { e.preventDefault(); document.getElementById("main")?.focus(); }}>Skip to content</a>
       <header className="top">
         <div className="top-row">
-          <a className="brand" href="#/submit"><b>Pravaah</b><span>water and carbon aware scheduling</span></a>
+          <a className="brand" href="#/submit"><b>Tidewise</b><span>water and carbon aware scheduling</span></a>
           <div className="top-tools"><Pulse /><ThemeButton /></div>
         </div>
         <nav className="tabs" aria-label="Sections">

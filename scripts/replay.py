@@ -1,5 +1,5 @@
 """Replay a job trace through the scheduler: naive (run now, in the submit region)
-versus Pravaah. Writes dashboard/public/replay.json for the Savings page.
+versus Tidewise. Writes dashboard/public/replay.json for the Savings page.
 
     python scripts/replay.py                       # synthetic trace, history if present else synthetic weather
     python scripts/replay.py --trace data/trace.csv

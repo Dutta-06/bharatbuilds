@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
-Description: Pravaah worker - deploy once in every region jobs can be placed in (make deploy-workers)
+Description: Tidewise worker - deploy once in every region jobs can be placed in (make deploy-workers)
 
 Resources:
   WorkerFunction:
