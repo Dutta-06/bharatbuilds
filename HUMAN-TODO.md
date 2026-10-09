@@ -20,10 +20,16 @@ file in a PR) so everyone can see what's done.
       train a carbon model.
 
 ## Cost model (Step 1)
-- [ ] Open each `source.url` in `model/coefficients.yaml`, confirm the number and set
-      `checked: true`. Priority: `regional_wue` (AWS CSV) and `grid_water_factors`
-      (NREL paper, Table 1; one search summary gave coal 479 / gas 205 gal/MWh,
-      where we use 687 / 198).
+- [ ] Source checks in `model/coefficients.yaml`. Checked on 2026-10-09 (by Claude, from standard values and search
+      excerpts; the source pages themselves could not be opened from the build environment): latent heat, air specific
+      heat, the psychrometer coefficient and the ASHRAE supply-air limit are `checked: true`. Still open:
+      - `grid_water_factors`: open Table 1 of Macknick et al. 2012 and confirm coal 687, gas combined cycle 198,
+        biomass 553, geothermal 270, hydro 17 gal/MWh. Nuclear 672 is confirmed.
+      - `regional_wue`: six AWS 2024 values are confirmed against the fact sheets. Find the source of the
+        `asia-pacific-aggregate` 0.98 that Mumbai and Hyderabad use (AWS publishes no WUE for India), or replace it.
+      - The remaining entries (cycles of concentration, heat rejection ratio, wet-bulb thresholds, GPU power, PUE
+        default, carbon intensity, etc.) are modelling assumptions from papers nobody has opened yet.
+      Then set `checked: true` for each and `make validate`.
 - [ ] `python scripts/calibrate_wue.py`, then commit the `wue_scale` values it writes to
       `data/regions.yaml`.
 - [ ] `python notebooks/wue_validation.py`. The plan requires at least 2 regions to show
@@ -38,8 +44,12 @@ file in a PR) so everyone can see what's done.
 - [ ] `python scripts/set_water_stress.py --list` shows each region's coordinates; look the scores up in the
       Aqueduct atlas, then `python scripts/set_water_stress.py ap-south-1=<score> eu-north-1=<score> ...`
       (it validates 0-5 and keeps the file's comments), then `make validate`.
-- [ ] Replace the placeholder `grid_mix` and `typical_ci_g_per_kwh` with real annual
-      figures (Electricity Maps zone pages or Ember), then remove `placeholder: true`.
+- [ ] The placeholder `grid_mix` and `typical_ci_g_per_kwh` are only a fallback: live hourly mixes from Electricity
+      Maps override them in the pipeline. Replace them with real data once at least 7 days have been collected:
+      `aws s3 sync s3://<BucketName>/history data/history`, then `python scripts/update_grid_mix.py --dry-run`, then
+      without `--dry-run`. It writes a mean mix over the real hours and notes the window in a comment, because a week
+      is not a year. For a true annual mix, download Electricity Maps' yearly data (data portal) or Ember's yearly
+      electricity data for each zone and edit `data/regions.yaml` by hand; say which one in the blog.
 - [ ] `python scripts/pull_history.py --days 60`, then
       `python scripts/validate_data.py --history` must pass.
 - [ ] Optional but better for the replay: download Alibaba `pai_task_table.csv`

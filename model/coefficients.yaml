@@ -6,10 +6,9 @@
 #   uncertainty  relative half-width of a plausible range (0.2 = ±20%), used for receipt bands
 #   source       {title, url}
 #   note         why this value, and its limits
-#   checked      true once a team member has opened the source and confirmed the value.
-#                Everything starts false: the build environment could not open most sources,
-#                so values come from the cited documents as summarised by search results,
-#                or from standard physics references.
+#   checked      true once the value has been confirmed against the source or an authoritative
+#                reference. The note says who checked it, when, and how. Entries start false;
+#                an entry with several values is only true when every value is confirmed.
 #
 # `python scripts/validate_data.py` enforces this shape.
 
@@ -21,8 +20,8 @@ physics:
     source:
       title: IAPWS-IF97 steam tables (latent heat of water at ~30 °C)
       url: http://www.iapws.org/relguide/IF97-Rev.html
-    note: Energy to evaporate 1 kg of water at cooling-tower temperatures. 1 kWh of heat evaporates 3.6/2.43 = 1.48 kg.
-    checked: false
+    note: "Energy to evaporate 1 kg of water at cooling-tower temperatures. 1 kWh of heat evaporates 3.6/2.43 = 1.48 kg. Checked 2026-10-09 (Claude): matches the steam-table value (2430 kJ/kg at 30 C); the cited page was not opened."
+    checked: true
   air_specific_heat:
     value: 1.006
     unit: kJ/(kg·K)
@@ -30,8 +29,8 @@ physics:
     source:
       title: Engineering ToolBox, air specific heat at constant pressure
       url: https://www.engineeringtoolbox.com/air-specific-heat-capacity-d_705.html
-    note: Dry air near room temperature.
-    checked: false
+    note: "Dry air near room temperature. Checked 2026-10-09 (Claude): matches the standard value (1.005-1.006 kJ/kg.K near room temperature); the cited page was not opened."
+    checked: true
   psychrometer_coefficient:
     value: 6.53e-4
     unit: 1/K
@@ -39,8 +38,8 @@ physics:
     source:
       title: WMO-No. 8, Guide to Instruments and Methods of Observation, Annex 4.B (Assmann psychrometer)
       url: https://library.wmo.int/idurl/4/41650
-    note: "A in e = e_w(Tw) - A·(1 + 0.000944·Tw)·P·(T - Tw), for a ventilated psychrometer."
-    checked: false
+    note: "A in e = e_w(Tw) - A·(1 + 0.000944·Tw)·P·(T - Tw), for a ventilated psychrometer. Checked 2026-10-09 (Claude): matches the WMO Guide constant A = 6.53e-4 (1 + 0.000944 Tw) for a ventilated psychrometer; the cited page was not opened."
+    checked: true
 
 site_cooling:
   # On-site water per kWh of IT energy (the WUE definition), by cooling design.
@@ -101,8 +100,8 @@ site_cooling:
       source:
         title: ASHRAE Thermal Guidelines for Data Processing Environments (recommended inlet 18-27 °C)
         url: https://www.ashrae.org/technical-resources/bookstore/datacom-series
-      note: Direct evaporative (adiabatic) air cooling only evaporates water when outside air is above this.
-      checked: false
+      note: "Direct evaporative (adiabatic) air cooling only evaporates water when outside air is above this. Checked 2026-10-09 (Claude): 27 C is the upper limit of ASHRAE TC 9.9 recommended server inlet temperature (18-27 C); the cited page was not opened."
+      checked: true
     server_air_delta_t_k:
       value: 12.0
       unit: K
@@ -133,7 +132,7 @@ grid_water_factors:
     url: https://openei.org/datasets/files/969/pub/1748-9326_7_4_045802.pdf
   unit: L/kWh
   uncertainty: 0.5
-  note: "Converted from gal/MWh (× 0.003785). Medians vary with plant type: one search summary gave coal 479 and gas 205 gal/MWh where we use the generic-tower medians below; check Table 1."
+  note: "Converted from gal/MWh (× 0.003785). Medians vary with plant type; the factors below are the generic cooling-tower medians. Partly checked 2026-10-09 (Claude, via search excerpts; the paper was not opened): nuclear tower 672 gal/MWh (range 581-845) matches Macknick 2012. Coal 687 and gas combined cycle 198 appear only in a secondary citation of the paper, and biomass 553, geothermal 270 and hydro 17 were not found, so the entry stays unchecked. Open Table 1 and confirm those rows."
   checked: false
   values:
     coal: 2.60        # 687 gal/MWh, generic coal, cooling tower
@@ -160,7 +159,7 @@ regional_wue:
   year: 2024
   unit: L/kWh
   uncertainty: 0.15
-  note: Values as reported by search summaries of the AWS fact sheets; check against the CSV.
+  note: "AWS defines WUE as water withdrawn per kWh of IT load, which is not identical to water consumed; treat the calibration as approximate. Partly checked 2026-10-09 (Claude, via search excerpts of the AWS fact-sheet tables; the CSV was not opened): the 2024 values for us-east-1 (0.12), us-west-2 (0.16), eu-west-1 (0.03), eu-north-1 (0.02), eu-central-1 (0.01) and ap-southeast-1 (1.68) match. AWS publishes no WUE for Mumbai or Hyderabad, and no source was found for the asia-pacific-aggregate value of 0.98 that those two regions use, so the entry stays unchecked."
   checked: false
   values:
     us-east-1: 0.12
