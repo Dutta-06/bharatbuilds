@@ -3,6 +3,7 @@ import { api } from "../api.js";
 import { fmt } from "../colors.js";
 import { humanise, relative, utc, when } from "../time.js";
 import { ErrorBox, Loading, PageHead, Readout, Status } from "./common.jsx";
+import { runtime } from '../power.js';
 
 function Pct({ v }) {
   if (v == null) return "–";
@@ -71,6 +72,13 @@ export default function Job({ id }) {
 
   if (error) return <ErrorBox error={error} />;
   if (!job) return <Loading rows={5} />;
+  if (job.execution_mode === 'SIMULATED_FACILITY') return <>
+    <PageHead eyebrow="SIMULATED facility workload" title={job.name}><Status value={job.status} /></PageHead>
+    <div className="panel stack"><p>{job.criticality} · {job.estimated_power_kw} kW MODELED IT demand · remaining {runtime(job.remaining_runtime_s)}</p>
+      <p>Deadline: {job.request.deadline || 'Continuous service'}</p><p>{job.deferral_reason}</p>
+      <p>Action: {job.last_power_action} · {job.execution_status}. No real AWS process is checkpointed or resumed.</p>
+      <a href="#/operations">Return to Power & Operations</a></div>
+  </>;
   const p = job.placement;
   const view = receipt?.declared_job?.receipt || job.preview_receipt;
   return (
@@ -80,7 +88,7 @@ export default function Job({ id }) {
         Submitted from {job.request.submit_region}{job.team ? `, team ${job.team}` : ""}.
       </PageHead>
       <Lifecycle job={job} receipt={receipt} />
-      {job.status === "waiting" && <Reschedule job={job} onMoved={() => setTick((t) => t + 1)} />}
+      {job.status === "waiting" && !job.facility_id && <Reschedule job={job} onMoved={() => setTick((t) => t + 1)} />}
       <p className="explain">{humanise(p.reason)}</p>
       {view && (
         <div className="readouts">

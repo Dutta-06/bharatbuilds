@@ -12,9 +12,16 @@ Return: {"region", "wall_s", "cpu_s", "epochs", "final_loss", "started_at", "fin
 import math
 import os
 import random
-import resource
 import time
 from datetime import datetime, timezone
+
+try:
+    import resource
+    def user_cpu_seconds():
+        return resource.getrusage(resource.RUSAGE_SELF).ru_utime
+except ImportError:  # Windows demo/test hosts; Linux Lambda retains getrusage.
+    def user_cpu_seconds():
+        return os.times().user
 
 
 def train(seconds: float, seed: int = 0) -> tuple[int, float]:
@@ -44,9 +51,9 @@ def train(seconds: float, seed: int = 0) -> tuple[int, float]:
 def handler(event, context):
     seconds = max(1.0, min(600.0, float(event.get("seconds", 20))))
     started = datetime.now(timezone.utc)
-    cpu0, wall0 = resource.getrusage(resource.RUSAGE_SELF).ru_utime, time.monotonic()
+    cpu0, wall0 = user_cpu_seconds(), time.monotonic()
     epochs, loss = train(seconds, seed=hash(event.get("job_id", "")) & 0xFFFF)
-    cpu_s = resource.getrusage(resource.RUSAGE_SELF).ru_utime - cpu0
+    cpu_s = user_cpu_seconds() - cpu0
     return {
         "job_id": event.get("job_id"),
         "region": os.environ.get("AWS_REGION") or os.environ.get("AWS_DEFAULT_REGION"),

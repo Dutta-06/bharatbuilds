@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timedelta, timezone
+from botocore.exceptions import ClientError
 
 from model import regions as region_config
 from model.cost import Weights, receipt
@@ -84,6 +85,8 @@ def parse(body: dict, now: datetime) -> Job:
 def submit(body: dict, now: datetime | None = None) -> dict:
     now = now or forecasts.utc_now()
     job = parse(body, now)
+    from . import facilities
+    facility_metadata = facilities.metadata(body, job)
     surface, _ = forecasts.surface(start=now.replace(minute=0, second=0, microsecond=0))
     placement = schedule(job, surface)
     item = {
@@ -121,7 +124,16 @@ def submit(body: dict, now: datetime | None = None) -> dict:
     if placement.feasible:
         item["preview_receipt"] = receipt(placement.chosen.footprint, placement.baseline.footprint) \
             if placement.baseline else None
-    db.put_item(item)
+    item.update(facility_metadata)
+    if facility_metadata:
+        facilities.register(item)
+    else:
+        try:
+            db.table().put_item(Item=db.to_dynamo(item), ConditionExpression="attribute_not_exists(PK)")
+        except ClientError as exc:
+            if exc.response["Error"]["Code"] == "ConditionalCheckFailedException":
+                raise BadRequest("job ID already exists; submissions cannot overwrite a workload", 409) from exc
+            raise
     return public(item)
 
 

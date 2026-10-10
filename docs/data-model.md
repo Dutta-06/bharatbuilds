@@ -44,4 +44,21 @@ placement (chosen, baseline, alternatives, reason) and a preview receipt
 from the modelled energy.
 
 **Receipt** (`PK = RECEIPT#<job>`, `SK = META`): written by the executor after
-the run, with measured kWh. Also archived to S3.
+the run, separating modeled GPU footprints from proxy energy estimated using
+measured CPU time. Also archived to S3.
+
+## Facility and power decisions
+
+`FACILITY#<id> / META` stores configuration, state, UTC observation/accounting times,
+version, simulation generation, event_sequence, explicit job_ids and impact totals.
+GSI1PK=FACILITIES and GSI1SK=facility_id provide registry access without a scan.
+`FACILITY#<id> / EVENT#<generation>#<event_id>` is a durable idempotency record.
+`FACILITY#<id> / DECISION#<zero-padded version>` stores immutable decision batches.
+Associated workloads keep `JOB#<id> / META` and existing queue index keys. Optional
+fields include facility_id, criticality, execution_mode, estimated_power_kw,
+remaining_runtime_s, checkpoint/resume overhead seconds, dependencies, power_version,
+power_hold and intended last_power_action/execution_status. The deadline stays in
+request.deadline; no duplicate deadline field is added.
+Facility and job versions/statuses are conditional transaction checks. No indexes
+or existing keys are replaced. Simulation does not produce cloud receipts.
+See [DG-Shift lifecycle and schemas](dg-shift.md).

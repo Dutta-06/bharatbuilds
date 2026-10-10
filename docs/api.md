@@ -62,3 +62,29 @@ job's own constraints (allowed regions, residency, deadline, remaining `max_dela
 `409` if the job is not waiting (already running, done or failed); `502` if the old run could not be stopped, in
 which case nothing is changed. The pipeline also emails (SNS) when a waiting job could improve by 15% or more,
 once per new plan; nothing moves unless someone calls this (the dashboard button does).
+
+## Power and facility operations
+
+| Method | Route | Behavior |
+|---|---|---|
+| `GET` | `/facilities` | Public demo registry. |
+| `GET` | `/facilities/{id}` | Facility state, impact metrics and associated Tidewise jobs. |
+| `GET` | `/facilities/{id}/decisions` | Latest 30 persisted decision batches. |
+| `POST` | `/facilities/{id}/simulate-power` | Cognito platform-leads only; IoT publish (202 pending), or demo reset (200). |
+
+The site is a physical facility, never an AWS region. Power events affect only
+explicitly associated jobs. POST accepts power_state (GRID, BATTERY_TRANSITION,
+GENERATOR, GRID_RECOVERY), advance_s (1–86400), and optional event_id. operation:
+reset provisions/reset the fixed demo only. Missing auth 401; wrong group 403;
+invalid input 400; unknown/private facility 404; domain ordering/transition/write
+conflicts 409. Publishing is asynchronous: inspect last_event_id and decisions
+for confirmation. Public POST /jobs rejects facility metadata (403); trusted
+IAM backend provisioning is required. Existing unassociated submissions are unchanged.
+
+See [Power & Operations](dg-shift.md) for event schema, lifecycle,
+security, simulator commands, model assumptions and recovery.
+
+Submissions now return 409 when a job ID already exists, preventing public callers
+from overwriting demo or other workload records. Execution confirmation is sent
+only after the launch guard permits work; notification failure does not prevent
+receipt finalization.

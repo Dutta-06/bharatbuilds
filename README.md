@@ -140,3 +140,13 @@ scripts/              validate_data, calibrate_wue, pull_history, sample_trace, 
 notebooks/            wue_validation (percent-format notebook)
 docs/cost-model.md    one-page explainer
 ```
+
+## DG-Shift: integrated Power & Operations
+
+Tidewise now includes facility-specific power orchestration, IoT telemetry ingestion,
+transactional deadline-aware decisions and a resettable simulated six-workload demo.
+Run `python scripts/facility_demo.py offline-replay` after installing test dependencies.
+See [demo, APIs, assumptions and deployment prerequisites](docs/dg-shift.md).
+AWS deployment and live IoT verification must be performed separately after authorization.
+
+[DG-Shift reconnaissance, verification and limitations](docs/dg-verification.md).

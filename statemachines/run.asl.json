@@ -34,14 +34,15 @@
       "ResultPath": null,
       "Next": "WaitForSlot"
     },
-    "WaitForSlot": {"Type": "Wait", "TimestampPath": "$.wait_until", "Next": "NotifyStarted"},
+    "WaitForSlot": {"Type": "Wait", "TimestampPath": "$.wait_until", "Next": "Launch"},
     "NotifyStarted": {
       "Type": "Task",
       "Resource": "arn:aws:states:::sns:publish",
-      "Parameters": {"TopicArn": "${TopicArn}", "Subject": "Tidewise: job started",
-                     "Message.$": "States.Format('Job {} is starting in {}.', $.job_id, $.region)"},
+      "Parameters": {"TopicArn": "${TopicArn}", "Subject": "Tidewise: proxy execution complete",
+                     "Message.$": "States.Format('Job {} executed in {}. Its receipt is being written.', $.job_id, $.launched.run.region)"},
       "ResultPath": null,
-      "Next": "Launch"
+      "Catch": [{"ErrorEquals": ["States.ALL"], "ResultPath": "$.notification_error", "Next": "Finish"}],
+      "Next": "Finish"
     },
     "Launch": {
       "Type": "Task",
@@ -52,8 +53,14 @@
       "ResultPath": "$.launched",
       "TimeoutSeconds": 900,
       "Catch": [{"ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "MarkFailed"}],
-      "Next": "Finish"
+      "Next": "PowerGate"
     },
+    "PowerGate": {
+      "Type": "Choice",
+      "Choices": [{"Variable": "$.launched.run.power_wait", "IsPresent": true, "Next": "WaitForPower"}],
+      "Default": "NotifyStarted"
+    },
+    "WaitForPower": {"Type": "Wait", "Seconds": 60, "Next": "Launch"},
     "Finish": {
       "Type": "Task",
       "Resource": "arn:aws:states:::lambda:invoke",

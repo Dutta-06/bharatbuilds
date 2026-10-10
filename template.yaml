@@ -91,6 +91,109 @@ Globals:
         LOCAL_ENDPOINT_URL: ""  # set by env.local.json for sam local + LocalStack only
 
 Resources:
+  FacilitiesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/facilities/
+      Handler: app.handler
+      Environment:
+        Variables:
+          DG_LOCAL_SIMULATION: "false"
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: [dynamodb:GetItem, dynamodb:PutItem, dynamodb:UpdateItem, dynamodb:ConditionCheckItem, dynamodb:Query]
+              Resource: [!GetAtt MainTable.Arn, !Sub "${MainTable.Arn}/index/GSI1"]
+              Condition:
+                ForAllValues:StringLike:
+                  dynamodb:LeadingKeys: ["FACILITY#*", "JOB#*", "FACILITIES", "FORECAST#*"]
+            - Effect: Allow
+              Action: iot:DescribeEndpoint
+              Resource: "*"
+            - Effect: Allow
+              Action: iot:Publish
+              Resource: !Sub "arn:${AWS::Partition}:iot:${AWS::Region}:${AWS::AccountId}:topic/tidewise/facilities/*/power"
+      Events:
+        List:
+          Type: HttpApi
+          Properties: {ApiId: !Ref PravaahApi, Path: /facilities, Method: get}
+        Read:
+          Type: HttpApi
+          Properties: {ApiId: !Ref PravaahApi, Path: "/facilities/{id}", Method: get}
+        Decisions:
+          Type: HttpApi
+          Properties: {ApiId: !Ref PravaahApi, Path: "/facilities/{id}/decisions", Method: get}
+        Simulate:
+          Type: HttpApi
+          Properties: {ApiId: !Ref PravaahApi, Path: "/facilities/{id}/simulate-power", Method: post, Auth: {Authorizer: CognitoAuthorizer}}
+
+  PowerEventFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/power_event/
+      Handler: app.handler
+      Timeout: 60
+      DeadLetterQueue:
+        Type: SNS
+        TargetArn: !Ref NotificationsTopic
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: [dynamodb:GetItem, dynamodb:PutItem, dynamodb:UpdateItem, dynamodb:ConditionCheckItem, dynamodb:Query]
+              Resource: [!GetAtt MainTable.Arn, !Sub "${MainTable.Arn}/index/GSI1"]
+              Condition:
+                ForAllValues:StringLike:
+                  dynamodb:LeadingKeys: ["FACILITY#*", "JOB#*", "FACILITIES", "FORECAST#*"]
+      Events:
+        DeadlineCheck:
+          Type: Schedule
+          Properties: {Schedule: "rate(1 minute)", Enabled: true}
+
+  FacilityPowerRule:
+    Type: AWS::IoT::TopicRule
+    Properties:
+      TopicRulePayload:
+        AwsIotSqlVersion: "2016-03-23"
+        Sql: "SELECT *, topic(3) AS topic_facility FROM 'tidewise/facilities/+/power'"
+        RuleDisabled: false
+        Actions:
+          - Lambda: {FunctionArn: !GetAtt PowerEventFunction.Arn}
+        ErrorAction:
+          S3:
+            RoleArn: !GetAtt FacilityPowerErrorRole.Arn
+            BucketName: !Ref DataBucket
+            Key: "power-events/errors/${newuuid()}.json"
+
+  FacilityPowerErrorRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: {Service: iot.amazonaws.com}
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals: {"aws:SourceAccount": !Ref AWS::AccountId}
+              ArnLike: {"aws:SourceArn": !Sub "arn:${AWS::Partition}:iot:${AWS::Region}:${AWS::AccountId}:rule/*"}
+      Policies:
+        - PolicyName: power-event-errors
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: s3:PutObject
+                Resource: !Sub "${DataBucket.Arn}/power-events/errors/*"
+
+  FacilityPowerInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt PowerEventFunction.Arn
+      Principal: iot.amazonaws.com
+      SourceAccount: !Ref AWS::AccountId
+      SourceArn: !GetAtt FacilityPowerRule.Arn
+
   # --- API (explicit so it can carry the Cognito authorizer and throttling) -------
 
   PravaahApi:

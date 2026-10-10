@@ -7,7 +7,7 @@ import { ErrorBox, PageHead } from "./common.jsx";
 const REGION = import.meta.env.VITE_COGNITO_REGION || "ap-south-1";
 const CLIENT_ID = import.meta.env.VITE_COGNITO_CLIENT_ID;
 
-async function signIn(email, password) {
+export async function signIn(email, password) {
   const resp = await fetch(`https://cognito-idp.${REGION}.amazonaws.com/`, {
     method: "POST",
     headers: { "content-type": "application/x-amz-json-1.1", "x-amz-target": "AWSCognitoIdentityProviderService.InitiateAuth" },

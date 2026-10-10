@@ -10,3 +10,6 @@ dist/
 .env
 .DS_Store
 .ipynb_checkpoints/
+.test-deps/
+.npm-cache/
+.vscode/

@@ -100,3 +100,29 @@ Returns litres of water and kg of CO₂ per kWh of IT energy and per GPU-hour, w
 ```
 
 `max_delay_h` is 0 to 720. A job submitted with `"team": "<team>"` uses the team's weights. It can narrow `allowed_regions` but never widen them.
+
+## Power and facility operations
+
+| Method | Route | Behavior |
+|---|---|---|
+| `GET` | `/facilities` | Public demo registry. |
+| `GET` | `/facilities/{id}` | Facility state, impact metrics and associated Tidewise jobs. |
+| `GET` | `/facilities/{id}/decisions` | Latest 30 persisted decision batches. |
+| `POST` | `/facilities/{id}/simulate-power` | Cognito platform-leads only; IoT publish (202 pending), or demo reset (200). |
+
+The site is a physical facility, never an AWS region. Power events affect only
+explicitly associated jobs. POST accepts power_state (GRID, BATTERY_TRANSITION,
+GENERATOR, GRID_RECOVERY), advance_s (1–86400), and optional event_id. operation:
+reset provisions/reset the fixed demo only. Missing auth 401; wrong group 403;
+invalid input 400; unknown/private facility 404; domain ordering/transition/write
+conflicts 409. Publishing is asynchronous: inspect last_event_id and decisions
+for confirmation. Public POST /jobs rejects facility metadata (403); trusted
+IAM backend provisioning is required. Existing unassociated submissions are unchanged.
+
+See [Power & Operations](#/docs/power-operations) for event schema, lifecycle,
+security, simulator commands, model assumptions and recovery.
+
+Submissions now return 409 when a job ID already exists, preventing public callers
+from overwriting demo or other workload records. Execution confirmation is sent
+only after the launch guard permits work; notification failure does not prevent
+receipt finalization.

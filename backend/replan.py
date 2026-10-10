@@ -37,6 +37,8 @@ def _job_from_item(item: dict, now: datetime):
 def evaluate(item: dict, surface, now: datetime) -> dict | None:
     """A better plan for this waiting job, or None. improvement = how much cheaper (fraction)
     the new plan is than the current one, both priced on today's forecast."""
+    if item.get("facility_id"):
+        return None  # Facility gate owns recovery; do not cancel/restart this execution.
     chosen = (item.get("placement") or {}).get("chosen")
     if item.get("status") != "waiting" or not chosen:
         return None
@@ -115,6 +117,8 @@ def reschedule(job_id: str, now: datetime | None = None, sfn=None) -> dict:
     item = db.get_item(db.job_pk(job_id), db.META)
     if item is None:
         raise BadRequest(f"no job {job_id}", 404)
+    if item.get("facility_id"):
+        raise BadRequest("facility jobs use coordinated power recovery; their execution is not cancelled", 409)
     if item["status"] != "waiting":
         raise BadRequest(f"job is {item['status']}; only a job waiting for its start can be rescheduled", 409)
     ev = evaluate(item, _surface(now), now)

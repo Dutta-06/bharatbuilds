@@ -14,7 +14,7 @@ import time
 import boto3
 
 from backend import db, jobs, policies
-from backend.http import handle, json_body, response
+from backend.http import BadRequest, handle, json_body, response
 
 
 def start_run(job: dict) -> str | None:
@@ -42,7 +42,12 @@ def emit_metrics(job: dict) -> None:
 
 @handle
 def handler(event, context):
-    job = jobs.submit(policies.apply(json_body(event)))
+    body = json_body(event)
+    if body.get("facility_id"):
+        # This public route has no JWT authorizer. Physical association is provisioned
+        # through the trusted backend/CLI; never trust a user-supplied JWT payload.
+        raise BadRequest("facility-associated cloud jobs require trusted backend provisioning", 403)
+    job = jobs.submit(policies.apply(body))
     emit_metrics(job)
     execution = start_run(job)
     if execution:

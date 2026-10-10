@@ -37,6 +37,11 @@ async function surface(q) {
 
 export const api = {
   base: BASE,
+  facilities: () => call('/facilities').then((r) => r.body.facilities),
+  facility: (id) => call(`/facilities/${encodeURIComponent(id)}`).then((r) => r.body),
+  power: (id, body, token) => call(`/facilities/${encodeURIComponent(id)}/simulate-power`, {
+    method: 'POST', headers: token ? { authorization: token } : {}, body: JSON.stringify(body),
+  }),
   regions: () => call("/regions").then((r) => r.body.regions),
   surface,
   savings: (q) => call("/savings?" + new URLSearchParams(q)).then((r) => r.body),
