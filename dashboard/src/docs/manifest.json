@@ -18,7 +18,8 @@
       {"slug": "guide-savings", "title": "Savings", "summary": "Cumulative savings by team."},
       {"slug": "guide-policies", "title": "Team policies", "summary": "Set rules that apply to a whole team."},
       {"slug": "guide-assistant", "title": "Assistant", "summary": "Place and ask about jobs in plain language."},
-      {"slug": "notifications", "title": "Notifications", "summary": "Email alerts and nudges."}
+      {"slug": "notifications", "title": "Notifications", "summary": "Email alerts and nudges."},
+      {"slug": "power-operations", "title": "Power & Operations", "summary": "Facility telemetry, deadline protection, simulated demo and grid recovery."}
     ]},
     {"title": "Reference", "pages": [
       {"slug": "api", "title": "API reference", "summary": "Every route, field and error."},

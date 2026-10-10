@@ -332,3 +332,11 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
   header.top, .no-print { display: none !important; }
   body { background: #fff; color: #000; }
 }
+/* Power operations uses the shared Tidewise typography, panels and color tokens. */
+.ops-overview { display: flex; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
+.ops-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; margin: 24px 0; }
+.ops-buttons { flex-wrap: wrap; gap: 12px; }
+.ops-reason { min-width: 240px; max-width: 440px; }
+.ops-controls { margin: 20px 0; }
+@media (max-width: 760px) { .ops-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 420px) { .ops-metrics { grid-template-columns: 1fr; } }

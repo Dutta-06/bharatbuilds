@@ -7,6 +7,7 @@ import Receipt from "./pages/Receipt.jsx";
 import Savings from "./pages/Savings.jsx";
 import Quality from "./pages/Quality.jsx";
 import Policies from "./pages/Policies.jsx";
+import Operations from "./pages/Operations.jsx";
 import Assistant from "./pages/Assistant.jsx";
 const Docs = lazy(() => import("./pages/Docs.jsx"));
 import { api } from "./api.js";
@@ -15,13 +16,14 @@ import { clock, parse, relative } from "./time.js";
 
 const PAGES = [
   ["submit", "Submit"], ["queue", "Queue"], ["surface", "Surface"], ["savings", "Savings"],
-  ["quality", "Forecasts"], ["assistant", "Assistant"], ["policies", "Policies"], ["docs", "Docs"],
+  ["operations", "Power & Operations"], ["quality", "Forecasts"], ["assistant", "Assistant"], ["policies", "Policies"], ["docs", "Docs"],
 ];
 
 const HELP = {
   submit: "guide-submit", queue: "guide-queue", surface: "guide-surface", savings: "guide-savings",
   quality: "data-and-forecasts", assistant: "guide-assistant", policies: "guide-policies",
   jobs: "guide-queue", receipt: "receipts",
+  operations: "power-operations",
 };
 
 function useRoute() {
@@ -77,6 +79,7 @@ export default function App() {
   else if (page === "savings") body = <Savings />;
   else if (page === "quality") body = <Quality />;
   else if (page === "policies") body = <Policies />;
+  else if (page === "operations") body = <Operations />;
   else if (page === "assistant") body = <Assistant />;
   else if (page === "docs") body = <Suspense fallback={<div className="muted">Loading documentation…</div>}><Docs slug={arg && decodeURIComponent(arg)} anchor={anchor} /></Suspense>;
   else body = <Submit />;

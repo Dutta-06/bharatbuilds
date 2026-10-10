@@ -4,7 +4,7 @@ import { fmt } from "../colors.js";
 import { relative, when } from "../time.js";
 import { Empty, ErrorBox, Loading, PageHead, Status } from "./common.jsx";
 
-const FILTERS = [["all", "All"], ["waiting", "Waiting"], ["running", "Running"], ["done", "Done"], ["failed", "Failed"]];
+const FILTERS = [["all", "All"], ["waiting", "Waiting"], ["deferred", "Deferred"], ["running", "Running"], ["done", "Done"], ["failed", "Failed"]];
 
 export default function Queue() {
   const [jobs, setJobs] = useState(null);
@@ -46,8 +46,8 @@ export default function Queue() {
                       <tr key={j.job_id}>
                         <td><a href={`#/jobs/${j.job_id}`}>{j.name || <span className="num">{j.job_id}</span>}</a>{j.team && <span className="muted small"> · {j.team}</span>}</td>
                         <td><Status value={j.status} /></td>
-                        <td className="num">{j.request.gpu_hours}</td>
-                        <td className="mono">{j.request.submit_region} → <b>{c?.region || "–"}</b></td>
+                        <td className="num">{j.request.gpu_hours ?? 'SIMULATED'}</td>
+                        <td className="mono">{j.execution_mode === 'SIMULATED_FACILITY' ? j.facility_id : <>{j.request.submit_region} → <b>{c?.region || "–"}</b></>}</td>
                         <td className="small nowrap" title={c?.start && relative(c.start)}>{c ? when(c.start) : "–"}</td>
                         <td className="num">{s ? `${fmt.litres(s.litres)} L` : "–"}</td>
                         <td className="num">{s ? `${fmt.kg(s.kg_co2)} kg` : "–"}</td>
@@ -62,7 +62,7 @@ export default function Queue() {
                 return (
                   <a className="job" href={`#/jobs/${j.job_id}`} key={j.job_id}>
                     <div className="top"><b>{j.name || <span className="num">{j.job_id}</span>}</b><Status value={j.status} /></div>
-                    <div className="route">{j.request.submit_region} → {c?.region || "–"} · {j.request.gpu_hours} GPU-h</div>
+                    <div className="route">{j.execution_mode === 'SIMULATED_FACILITY' ? `SIMULATED · ${j.facility_id} · ${j.estimated_power_kw} kW` : `${j.request.submit_region} → ${c?.region || '–'} · ${j.request.gpu_hours} GPU-h`}</div>
                     <div className="small">{c ? `Starts ${when(c.start)}` : "Not placed"}</div>
                     {s && <div className="save num">{fmt.litres(s.litres)} L water · {fmt.kg(s.kg_co2)} kg CO₂ saved</div>}
                   </a>);

@@ -34,7 +34,9 @@ def code(text: str, form: bool = False) -> dict:
 
 
 def cells() -> list[dict]:
-    files = {p: base64.b64encode((ROOT / p).read_bytes()).decode() for p in EMBED}
+    # All embedded inputs are text. Git may check them out as CRLF on Windows;
+    # normalize before hashing/embedding so freshness checks are reproducible.
+    files = {p: base64.b64encode((ROOT / p).read_text(encoding="utf-8").encode("utf-8")).decode() for p in EMBED}
     blob = json.dumps(files, indent=0)
     return [
         md("""
