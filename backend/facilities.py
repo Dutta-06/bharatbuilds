@@ -19,6 +19,7 @@ from backend.http import BadRequest
 from scheduler.power import CLASSES, TERMINAL, decide, utc
 
 DEMO_ID = "demo-delhi-01"
+DECISION_TTL = timedelta(days=7)
 STATES = {"GRID", "BATTERY_TRANSITION", "GENERATOR", "GRID_RECOVERY"}
 TRANSITIONS = {"GRID": {"GRID", "BATTERY_TRANSITION", "GENERATOR"},
                "BATTERY_TRANSITION": {"BATTERY_TRANSITION", "GENERATOR", "GRID_RECOVERY"},
@@ -430,7 +431,9 @@ def commit_operations(f, originals, workloads, version):
     for before, after in zip(originals, workloads):
         ops.append(put_tx(after, "power_version = :v AND #s = :s", {":v": before.get("power_version", 0), ":s": before["status"]}))
         ops[-1]["Put"]["ExpressionAttributeNames"] = {"#s": "status"}
-    ops.append(put_tx({"PK": f["PK"], "SK": f"DECISION#{f['version']:012d}", "at": f["accounted_at"],
+    # One decision row per commit (about one a minute while the facility is monitored): expire them.
+    expires = int((datetime.now(timezone.utc) + DECISION_TTL).timestamp())
+    ops.append(put_tx({"PK": f["PK"], "SK": f"DECISION#{f['version']:012d}", "at": f["accounted_at"], "expires_at": expires,
                        "power_state": f["power_state"], "decisions": f["latest_decisions"], "metrics": f["metrics"]}, "attribute_not_exists(PK)"))
     return ops
 

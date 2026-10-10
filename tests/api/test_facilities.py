@@ -366,3 +366,17 @@ def test_late_completion_never_erases_a_missed_deadline(demo):
     decision = decide(site, [job], TIME + timedelta(hours=2))[0]
     assert decision["action"] == "NO_ACTION"
     assert not decision["deadline_feasible"]
+
+
+def test_decision_history_rows_expire(demo):
+    f.process_event(telemetry("GENERATOR"))
+    rows = f.history(f.DEMO_ID)
+    assert rows and all(int(r["expires_at"]) > 0 for r in rows)  # the table's TTL attribute; otherwise rows pile up forever
+
+
+def test_facility_lambdas_may_read_forecasts_for_recovery_replanning():
+    import re
+    from pathlib import Path
+    template = (Path(__file__).resolve().parents[2] / "template.yaml").read_text()
+    lists = re.findall(r'LeadingKeys: (\[[^\]]*\])', template)
+    assert lists and all('"FORECAST#*"' in keys for keys in lists)

@@ -106,7 +106,7 @@ Resources:
               Resource: [!GetAtt MainTable.Arn, !Sub "${MainTable.Arn}/index/GSI1"]
               Condition:
                 ForAllValues:StringLike:
-                  dynamodb:LeadingKeys: ["FACILITY#*", "JOB#*", "FACILITIES"]
+                  dynamodb:LeadingKeys: ["FACILITY#*", "JOB#*", "FACILITIES", "FORECAST#*"]
             - Effect: Allow
               Action: iot:DescribeEndpoint
               Resource: "*"
@@ -143,7 +143,7 @@ Resources:
               Resource: [!GetAtt MainTable.Arn, !Sub "${MainTable.Arn}/index/GSI1"]
               Condition:
                 ForAllValues:StringLike:
-                  dynamodb:LeadingKeys: ["FACILITY#*", "JOB#*", "FACILITIES"]
+                  dynamodb:LeadingKeys: ["FACILITY#*", "JOB#*", "FACILITIES", "FORECAST#*"]
       Events:
         DeadlineCheck:
           Type: Schedule
