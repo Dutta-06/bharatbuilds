@@ -116,7 +116,7 @@ export function OperationsDetails({ data }) {
         <Readout label="Generator-period demand deferred" value={m.deferred_it_kwh} unit="kWh">{runtime(m.reduced_demand_s)} of reduced demand</Readout>
       </section>}
       <p className="small muted">Deferred computing moves to a later time. These figures are not measured generator output or diesel/pollution savings.
-        {f.fuel_estimate?.status === 'MODELED' ? <> Conditional fuel rate: {f.fuel_estimate.litres_per_hour} litres/hour MODELED; source: {f.fuel_estimate.source}. Manufacturer conditions must apply; this is not measured fuel savings.</> : <> Diesel estimate: UNAVAILABLE — {f.fuel_estimate?.reason || 'no sourced generator fuel curve'}.</>} Tidewise water/carbon receipts remain separate.</p>
+        {f.fuel_estimate?.status === 'MODELED' ? <> Conditional fuel rate: {f.fuel_estimate.litres_per_hour} litres/hour MODELED; source: {f.fuel_estimate.source}. Manufacturer conditions must apply; this is not measured fuel savings.</> : <> Diesel estimate: UNAVAILABLE — {(f.fuel_estimate?.reason || 'no sourced generator fuel curve').replace(/\.$/, '')}.</>} Tidewise water/carbon receipts remain separate.</p>
       <div className="panel tight scroll"><table>
         <caption className="section-title">Facility workloads · simulated lifecycle</caption>
         <thead><tr><th>Workload / criticality</th><th>Status / action</th><th>Power</th><th>Remaining</th><th>Deadline UTC</th><th>Decision explanation</th></tr></thead>
