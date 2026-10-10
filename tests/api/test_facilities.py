@@ -380,3 +380,15 @@ def test_facility_lambdas_may_read_forecasts_for_recovery_replanning():
     template = (Path(__file__).resolve().parents[2] / "template.yaml").read_text()
     lists = re.findall(r'LeadingKeys: (\[[^\]]*\])', template)
     assert lists and all('"FORECAST#*"' in keys for keys in lists)
+
+
+def test_demo_workloads_do_not_enter_the_shared_queue_or_savings(demo, seeded):
+    from backend import savings
+    real = jobs.submit({"gpu_hours": 4, "deadline_h": 24, "submit_region": "ap-south-1", "team": "ml"}, TIME.replace(tzinfo=None))
+    ids = {j["job_id"] for j in jobs.queue(100)}
+    assert real["job_id"] in ids
+    assert ids and not any(i.startswith("dg-demo-") for i in ids)   # real jobs still listed, simulated ones not
+    assert jobs.get("dg-demo-api") is not None                      # but reachable by id and on /facilities
+    assert len(f.view(f.DEMO_ID)["workloads"]) == 6
+    f.process_event(telemetry("GENERATOR"))
+    assert savings.summarise(jobs.queue(100), now=TIME.replace(tzinfo=None))["totals"]["jobs"] == 1   # only the real job counts

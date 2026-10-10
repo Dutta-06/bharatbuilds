@@ -207,7 +207,9 @@ def reset_demo(now=None):
     for suffix, name, power, runtime, deadline_s, category in specs:
         jid = f"dg-demo-{suffix}"
         f["job_ids"].append(jid)
-        j = {"PK": db.job_pk(jid), "SK": "META", "GSI1PK": "JOBS", "GSI1SK": f"{stamp(now)}#{jid}",
+        # Own index partition, not the shared "JOBS" queue: simulated workloads must not crowd out real jobs
+        # in the Queue, the nudge sweep or the savings totals. They are shown on the Operations page.
+        j = {"PK": db.job_pk(jid), "SK": "META", "GSI1PK": "FACILITY_WORKLOADS", "GSI1SK": f"{stamp(now)}#{jid}",
              "job_id": jid, "name": name, "status": "running", "submitted_at": stamp(now),
              "facility_id": DEMO_ID, "criticality": category, "execution_mode": "SIMULATED_FACILITY",
              "checkpoint_supported": category == "CHECKPOINTABLE", "checkpoint_overhead_s": 300 if category == "CHECKPOINTABLE" else 0,
