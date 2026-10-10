@@ -1,72 +1,55 @@
-# Demo video script (3:00)
+# Demo video
 
-Timings follow the plan (Step 15). **Every number in brackets must come from a real
-run** (the deployed stack, the replay rerun on real history and the real trace, and
-`forecasting/models/metrics.json`). Do not record with the synthetic numbers.
-Record the screen and the AWS console separately; cut on a timeline.
+`demo.mp4` (about 3:00, 1280×720, captions burned in) is recorded automatically from the **deployed API** by
+`docs/video/record.js`, so every number on screen is real and current at recording time. Re-record any time:
 
-## 0:00-0:30 The problem
-**Visual:** a chart of water per kWh against wet-bulb (the tower curve from
-`docs/cost-model.md`), then a split screen: Delhi at 3 PM (wet-bulb ~27 °C) and a
-coastal or Nordic night (~8 °C).
+```bash
+cd dashboard && VITE_API_URL=<ApiUrl> npm run build && npx vite preview --port 4173 &
+API=<ApiUrl> OUT=/tmp/demo NODE_PATH=<playwright node_modules> node docs/video/record.js
+python3 docs/video/finish.py /tmp/demo        # demo.mp4 + a rescaled demo.srt
+```
 
-> "Data centres cool themselves by evaporating water, and the hotter and more humid
-> it is outside, the more they evaporate. In a Delhi afternoon, one kWh of AI compute
-> can cost [2.2] litres of water on site, plus [2] litres at a coal plant. At night in
-> Stockholm it's close to [zero] on site. The colony next door draws on the same
-> stressed supply, and its peak demand falls on exactly those afternoons."
+Recording submits one real demo job (it emails the notification address when it is placed and finishes).
 
-## 0:30-1:30 Tidewise in use
-**Visual:** dashboard → Submit: 4 GPU-hours, deadline Friday, submitted from Mumbai.
+## Caption script (the narration to read if you add a voice-over)
+- **0:00** AI jobs need electricity, and the data centres behind them need cooling water.
+- **0:08** Right now, one kWh of AI compute in Mumbai takes about 4.7 litres of water and 0.8 kg of CO₂.
+- **0:15** In Stockholm: about 1 litre, and 0.02 kg. That is 5× the water and 33× the carbon.
+- **0:26** Most AI work is not urgent. You tell Tidewise how much compute you need, and by when.
+- **0:37** You choose how much water and carbon each matter.
+- **0:42** The estimate updates live: run now in Mumbai, or wait for a better slot and region.
+- **0:49** Every hour Tidewise forecasts weather and grid carbon for eight AWS regions, 48 hours ahead.
+- **0:55** It prices every region and every hour. Blue is cheaper than running now in Mumbai.
+- **1:03** The cheapest slot: eu-central-1, 12 Oct 2026 11:00 UTC, 88% lower cost than now.
+- **1:12** The table and map show litres of water and kilograms of CO₂ for every region at that hour.
+- **1:25** Place the job. Tidewise searches every region and hour that still meets the deadline.
+- **1:32** It explains the choice in plain language, with the water and carbon it saves, and a range for the uncertainty.
+- **1:41** Every option it considered is listed, so the choice can be audited.
+- **1:46** An hourly Step Functions pipeline refreshes forecasts. Each job gets its own state machine that waits for the chosen hour…
+- **1:53** …then launches in the chosen region, writes a receipt, and emails you. Forecast models are only used where they beat a naive baseline.
+- **2:02** A finished job placed through the built-in assistant: it ran in Ireland instead of Mumbai.
+- **2:09** Each job gets a receipt to share or print. Water and carbon are modelled; the stand-in workload's energy is measured. We say which is which.
+- **2:20** Across 10 jobs placed so far: 44 litres of water and 7.8 kg of CO₂ saved, by team and over time.
+- **2:29** And when the grid fails, DG-Shift protects critical services and defers flexible work while the site runs on a generator.
+- **2:36** Simulated demo: 47 kW of IT demand drops to 19 kW. 42 kWh of work moves to later. Every deadline still holds.
+- **2:45** Everything is documented in the app: concepts, user guide, API reference, FAQ.
+- **2:49** Water and carbon are modelled, so absolute litres are uncertain. The ranking of slots holds up.
 
-> "Most AI work isn't urgent. Training, fine-tuning, evaluation sweeps all have
-> deadlines in hours or days. Tidewise uses that slack."
+## Scenes
+1. Title and the problem: live water and CO₂ per kWh, Mumbai against Stockholm (`/price`).
+2. Submit: describe a job, set the water/carbon balance.
+3. Surface: scrub 48 hours, find the cheapest region and hour.
+4. Place a real job and read the explanation and the options considered.
+5. How it runs on AWS (diagram).
+6. A finished job and its receipt.
+7. Savings so far (live `/savings`).
+8. Power & Operations (DG-Shift). **This scene replays output of the real backend code as a fixture** because resetting the
+   live demo needs a platform-leads sign-in. To show it live, sign in, press Reset demo, run the scenario, and screen-record it.
+9. Docs, then the closing card.
 
-**Visual:** Surface page, drag the scrubber across 48 h. Blue regions are cheaper than
-"run now, here".
-
-> "Every hour, Tidewise forecasts wet-bulb temperature and grid carbon for [8] AWS
-> regions, 48 hours ahead, and prices each region-hour in litres and kilograms."
-
-**Visual:** Job page: the explanation sentence, options considered, and the two headline
-numbers with their ranges.
-
-> "It picks the slot that finishes before the deadline with the least water and carbon,
-> and tells you why: [X]% less water, [Y]% less CO2 than running now in Mumbai,
-> finishing [Z] hours before the deadline."
-
-## 1:30-2:15 How it works on AWS
-**Visual:** the diagram from `docs/architecture.md`, then the real Step Functions console.
-
-> "An EventBridge rule runs a Step Functions pipeline every hour: Open-Meteo and
-> Electricity Maps in, a forecast model that's only used where it beats persistence, and
-> DynamoDB out. Each job gets its own state machine. It waits until the chosen hour..."
-
-**Visual:** the `pravaah-run` graph with the Wait state, then Launch.
-
-> "...launches the work in the chosen region and writes the receipt."
-
-**Visual:** the receipt: `ran_in: [eu-north-1]`, measured CPU time and energy.
-
-> "Honest receipts: the declared GPU job's energy is estimated; the proxy workload that
-> actually ran is measured. Lambda has no GPUs, and we say so."
-
-**Visual:** the CloudWatch dashboard, briefly.
-
-## 2:15-2:45 Does it add up?
-**Visual:** Savings page, trace replay bars.
-
-> "Replaying [500] jobs from [Alibaba's public GPU cluster trace]: [X]% less water,
-> [Y]% less CO2, [100]% of deadlines met, median delay [N] hours."
-
-**Visual:** the when-versus-where table, then the Forecast quality page.
-
-> "Most of the saving comes from *where*, not *when*. And water and carbon don't always
-> agree: a nuclear-powered grid is clean but thirsty. You set the weights."
-
-## 2:45-3:00 Close
-> "We don't control any data centre. Cooling water is modelled from published curves and
-> calibrated to AWS's own disclosures, and absolute litres are uncertain. But the ranking
-> of slots holds up. We used AI to decide when AI should run."
-
-**End card:** repo URL, live URL, team names.
+## Not in the video, and why
+- The trace replay (e.g. "500 jobs from a public GPU trace") is **not claimed**: it needs the real-data run on a machine
+  with Open-Meteo access (see HUMAN-TODO.md). Add a scene with its real numbers once you have them.
+- AWS console shots (Step Functions graph, CloudWatch) can't be captured from here; record them yourself and cut them
+  in after the architecture slide.
+- No voice-over: add your own over the captions, or leave the captions as they are.
