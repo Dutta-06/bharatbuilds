@@ -91,7 +91,11 @@ function Article({ page, anchor }) {
       pre.appendChild(b);
     });
     const target = anchor && document.getElementById(anchor);
-    if (target) target.scrollIntoView(); else window.scrollTo(0, 0);
+    if (target) {
+      target.scrollIntoView();
+      target.classList.add("flash");
+      setTimeout(() => target.classList.remove("flash"), 1700);
+    } else window.scrollTo(0, 0);
     return () => { document.title = "Tidewise"; };
   }, [page, anchor]);
 

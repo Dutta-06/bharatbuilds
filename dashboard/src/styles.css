@@ -207,9 +207,8 @@ td.mono { font-family: var(--font-mono); font-size: 13px; white-space: nowrap; }
 @media (max-width: 720px) { .only-sm { display: block; } }
 .legend { display: flex; align-items: center; gap: 10px; font: 400 12px var(--font-mono); color: var(--ink-2); flex-wrap: wrap; }
 .legend .ramp { width: 180px; height: 8px; border-radius: 1px; }
-.map { height: 360px; border: 1px solid var(--line); border-radius: var(--r-3); overflow: hidden; background: var(--panel-2); }
-.leaflet-container { font-family: var(--font-sans); background: var(--panel-2); }
-:root[data-theme="dark"] .leaflet-tile-pane { filter: none; }
+.map { height: 360px; border: 1px solid var(--line); border-radius: var(--r-3); overflow: hidden; background: var(--panel); }
+.leaflet-container { font-family: var(--font-sans); background: var(--panel); }
 .tip { position: fixed; pointer-events: none; background: var(--panel); color: var(--ink); border: 1px solid var(--line-strong);
   border-radius: var(--r-2); padding: 6px 9px; font: 400 12px var(--font-mono); z-index: 2000; }
 
@@ -238,8 +237,6 @@ td.mono { font-family: var(--font-mono); font-size: 13px; white-space: nowrap; }
 /* ---- skeletons ------------------------------------------------------------------------------------------- */
 .skel { background: var(--panel-2); border-radius: var(--r-2); height: 14px; }
 .skel.block { height: 120px; }
-@media (prefers-reduced-motion: no-preference) { .skel { animation: pulse 1.4s ease-in-out infinite; } }
-@keyframes pulse { 50% { opacity: 0.5; } }
 
 .actions { display: flex; flex-wrap: wrap; gap: 10px; }
 .explain { font-size: 15.5px; max-width: 78ch; }
@@ -261,6 +258,70 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
   .panel.tight table th:last-child, .panel.tight table td:last-child { padding-right: 12px; }
   .heat { min-width: 640px; }
 }
+/* ---- motion: short, purposeful, off for anyone who asks for less -------------------------------------------
+   Rules: animate opacity, transform and colour only; 120-300 ms; one ease curve;
+   motion confirms a change or orients the eye, it never decorates. */
+:root { --ease: cubic-bezier(0.2, 0.7, 0.2, 1); }
+@media (prefers-reduced-motion: no-preference) {
+  /* feedback: every interactive thing answers the pointer */
+  a, button, input, select, textarea, summary, .heat-cell, .theme-btn {
+    transition: color 140ms var(--ease), background-color 140ms var(--ease), border-color 140ms var(--ease),
+      opacity 140ms var(--ease), outline-color 140ms var(--ease), transform 140ms var(--ease);
+  }
+  .btn:active, button.primary:active, .theme-btn:active { transform: translateY(1px) scale(0.985); }
+  nav.tabs a { transition: color 140ms var(--ease), border-color 200ms var(--ease); }
+  .doc-foot a, .docs-nav a, .docs-results a { transition: border-color 140ms var(--ease), background-color 140ms var(--ease), color 140ms var(--ease); }
+  .doc-foot a:hover { transform: translateY(-1px); }
+
+  /* orientation: new page content settles in, top to bottom */
+  main > * { animation: rise 320ms var(--ease) backwards; }
+  main > :nth-child(2) { animation-delay: 40ms; } main > :nth-child(3) { animation-delay: 80ms; }
+  main > :nth-child(4) { animation-delay: 120ms; } main > :nth-child(n+5) { animation-delay: 160ms; }
+  .readouts > .readout { animation: rise 320ms var(--ease) backwards; }
+  .readouts > :nth-child(2) { animation-delay: 60ms; } .readouts > :nth-child(3) { animation-delay: 120ms; }
+  .readouts > :nth-child(n+4) { animation-delay: 180ms; }
+  .docs-main > * { animation: rise 260ms var(--ease) backwards; }
+  .heat-row { animation: fade 400ms var(--ease) backwards; }
+  .heat-row:nth-child(2) { animation-delay: 30ms; } .heat-row:nth-child(3) { animation-delay: 60ms; }
+  .heat-row:nth-child(4) { animation-delay: 90ms; } .heat-row:nth-child(5) { animation-delay: 120ms; }
+  .heat-row:nth-child(6) { animation-delay: 150ms; } .heat-row:nth-child(n+7) { animation-delay: 180ms; }
+  .joblist a.job { animation: rise 280ms var(--ease) backwards; }
+  tbody tr { animation: fade 300ms var(--ease) backwards; }
+  .docs-results { animation: drop 140ms var(--ease); }
+  .explain, .banner { animation: fade 300ms var(--ease) backwards; }
+
+  /* data: bars grow from zero, progress fills along the strip */
+  .bar { transform-origin: left center; animation: grow 600ms var(--ease) backwards; }
+  .steps li::before { transform-origin: left center; transition: background-color 300ms var(--ease); }
+  .steps li.on::before, .steps li.bad::before { animation: grow 480ms var(--ease) backwards; }
+  .steps li:nth-child(2)::before { animation-delay: 90ms; } .steps li:nth-child(3)::before { animation-delay: 180ms; }
+  .steps li:nth-child(4)::before { animation-delay: 270ms; }
+  .steps li[aria-current="step"].on::before { animation: grow 480ms var(--ease) backwards, glow 2.4s ease-in-out 600ms infinite; }
+
+  /* status: a healthy LED breathes, a waiting job is visibly alive */
+  .led.good { animation: breathe 2.8s ease-in-out infinite; }
+  .tag.running::before, .tag.waiting::before { animation: breathe 2.2s ease-in-out infinite; }
+
+  /* loading: a slow sweep, not a flash */
+  .skel { background: linear-gradient(90deg, var(--panel-2) 30%, var(--line) 50%, var(--panel-2) 70%) 0 0 / 220% 100%; animation: sweep 1.5s linear infinite; }
+
+  /* docs: landing on a deep link shows where you arrived */
+  .doc .flash { animation: flash 1.6s var(--ease); }
+
+  /* theme switch: cross-fade colours once, only when the person toggles */
+  .theme-anim, .theme-anim *, .theme-anim *::before, .theme-anim *::after {
+    transition: background-color 220ms var(--ease), color 220ms var(--ease), border-color 220ms var(--ease), fill 220ms var(--ease) !important;
+  }
+}
+@keyframes rise { from { opacity: 0; transform: translateY(6px); } }
+@keyframes fade { from { opacity: 0; } }
+@keyframes drop { from { opacity: 0; transform: translateY(-4px); } }
+@keyframes grow { from { transform: scaleX(0); } }
+@keyframes sweep { to { background-position: -120% 0; } }
+@keyframes breathe { 50% { opacity: 0.45; } }
+@keyframes glow { 50% { opacity: 0.55; } }
+@keyframes flash { 0% { background: var(--panel-2); box-shadow: 0 0 0 6px var(--panel-2); } 100% { background: transparent; box-shadow: 0 0 0 6px transparent; } }
+
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 .help-foot { max-width: 1180px; margin: 0 auto; padding: 0 20px 40px; display: flex; flex-wrap: wrap; gap: 8px 12px; font-size: 13px; color: var(--muted); }
 .help-foot a { color: var(--ink-2); }
