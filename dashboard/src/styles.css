@@ -207,9 +207,8 @@ td.mono { font-family: var(--font-mono); font-size: 13px; white-space: nowrap; }
 @media (max-width: 720px) { .only-sm { display: block; } }
 .legend { display: flex; align-items: center; gap: 10px; font: 400 12px var(--font-mono); color: var(--ink-2); flex-wrap: wrap; }
 .legend .ramp { width: 180px; height: 8px; border-radius: 1px; }
-.map { height: 360px; border: 1px solid var(--line); border-radius: var(--r-3); overflow: hidden; background: var(--panel-2); }
-.leaflet-container { font-family: var(--font-sans); background: var(--panel-2); }
-:root[data-theme="dark"] .leaflet-tile-pane { filter: none; }
+.map { height: 360px; border: 1px solid var(--line); border-radius: var(--r-3); overflow: hidden; background: var(--panel); }
+.leaflet-container { font-family: var(--font-sans); background: var(--panel); }
 .tip { position: fixed; pointer-events: none; background: var(--panel); color: var(--ink); border: 1px solid var(--line-strong);
   border-radius: var(--r-2); padding: 6px 9px; font: 400 12px var(--font-mono); z-index: 2000; }
 

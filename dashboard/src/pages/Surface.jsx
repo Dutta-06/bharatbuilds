@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
 import { api } from "../api.js";
-import { costColor, cssVar, fmt, isDark } from "../colors.js";
+import { costColor, cssVar, fmt } from "../colors.js";
 import { useThemeTick } from "../theme.js";
 import { parse, utc, when, whenShort } from "../time.js";
 import { ErrorBox, Loading, PageHead, SourcesBanner } from "./common.jsx";
@@ -140,18 +140,21 @@ function CostMap({ rows, lo, hi, tick }) {
   const layer = useRef(null);
   const tiles = useRef(null);
   useEffect(() => {
-    map.current = L.map(el.current, { worldCopyJump: true, scrollWheelZoom: false, zoomControl: true, attributionControl: true }).setView([30, 30], 1);
+    map.current = L.map(el.current, { maxBounds: [[-60, -180], [85, 180]], minZoom: 1, scrollWheelZoom: false, zoomControl: true, attributionControl: false }).setView([30, 30], 1);
     layer.current = L.layerGroup().addTo(map.current);
     return () => map.current.remove();
   }, []);
   useEffect(() => {
-    // Greyscale basemap that follows the theme, so the colour on the map is only the cost.
-    tiles.current?.remove();
-    const style = isDark() ? "dark_nolabels" : "light_nolabels";
-    tiles.current = L.tileLayer(`https://{s}.basemaps.cartocdn.com/${style}/{z}/{x}/{y}{r}.png`, {
-      maxZoom: 6, subdomains: "abcd", attribution: "&copy; OpenStreetMap contributors &copy; CARTO",
-    }).addTo(map.current);
-    tiles.current.bringToBack();
+    // No tile service: land is a bundled public-domain outline (Natural Earth), drawn in theme colours,
+    // so the map needs no API key or network and the only colour on it is the cost.
+    let alive = true;
+    import("../land.json").then(({ default: land }) => {
+      if (!alive || !map.current) return;
+      tiles.current?.remove();
+      tiles.current = L.geoJSON(land, { interactive: false, style: { color: cssVar("--line-strong"), weight: 0.8, fillColor: cssVar("--panel-2"), fillOpacity: 1 } }).addTo(map.current);
+      tiles.current.bringToBack();
+    });
+    return () => { alive = false; };
   }, [tick]);
   useEffect(() => {
     layer.current.clearLayers();
