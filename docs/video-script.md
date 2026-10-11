@@ -1,6 +1,6 @@
 # Demo video
 
-`demo.mp4` (about 2:33, 1280×720, captions burned in, no audio) is recorded automatically from the **deployed API** by
+`demo.mp4` (about 2:51, 1280×720, captions burned in, no audio) is recorded automatically from the **deployed API** by
 `docs/video/record.js`, so every number on screen is real and current at recording time. The competition limit is
 **3:00**. Re-record any time:
 
@@ -16,9 +16,9 @@ assistant request.
 ## What the video shows, in order
 Title · the problem with live numbers (Mumbai vs Stockholm) · Submit, with the water/carbon weights and the constraints
 (data residency, allowed regions, splitting) · the 48-hour cost surface and map · placing a real job, its
-plain-language explanation, reschedule/nudge and options considered · the queue · how it runs on AWS (diagram) · a
+plain-language explanation, reschedule/nudge and options considered · the queue · how it runs on AWS (diagram) · the tech stack and AWS services used · a
 receipt with share/export · cumulative savings · forecast quality · the public price API · the assistant answering
-live · team policies (sign-in) · DG-Shift Power & Operations · in-app docs · closing card.
+live · team policies (sign-in) · DG-Shift Power & Operations · in-app docs · what we learned · closing card.
 
 ## Not shown, and why
 - **Operations scene** replays output of the real backend code as a fixture, because the live demo needs a

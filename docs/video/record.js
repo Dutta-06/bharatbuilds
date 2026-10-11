@@ -64,6 +64,15 @@ const page_ = (body) => `<!doctype html><meta charset=utf-8><style>${fontFace}${
   },
   "inputs": { "t_wb": ${mum.inputs.t_wb.toFixed(1)}, "ci_g_per_kwh": ${mum.inputs.ci_g_per_kwh} }
 }</pre><p class=note>Live response, with low and high ranges. For any region and any hour in the next 48.</p></div>`),
+    stack: page_(`<div class=card><div class=eyebrow>Tech stack and AWS services</div><div class=two style="align-items:start">
+      <div class=stat style="gap:14px"><span>BUILT WITH</span>
+        <p style="font-size:22px;color:#ededed;line-height:1.6">Python 3.12 · React 18 + Vite · Leaflet<br>scikit-learn (forecast training) · OR-Tools (split planning)<br>Strands agent + open model (assistant)<br>pytest + moto · GitHub Actions CI<br>Open-Meteo · Electricity Maps · NREL water factors</p></div>
+      <div class="stat cool" style="gap:14px"><span>ON AWS</span>
+        <p style="font-size:22px;color:#ededed;line-height:1.6">Lambda: 21 functions + a worker per job region<br>Step Functions · EventBridge · API Gateway<br>DynamoDB · S3 · SNS · Cognito · IoT Core<br>CloudWatch · Amplify<br>One AWS SAM template deploys it all</p></div></div></div>`),
+    learn: page_(`<div class=card><div class=eyebrow>What we learned</div><h2>Three things the build taught us</h2>
+      <p style="color:#ededed">1. Water and carbon can disagree: a nuclear-heavy grid is clean but thirsty.</p>
+      <p style="color:#ededed">2. A forecast model is only worth using where it beats a naive baseline.</p>
+      <p style="color:#ededed">3. Be honest in the numbers: modelled versus measured, always with ranges.</p></div>`),
     close: page_(`<div class=card><div class=eyebrow>Tidewise</div><h2>We used AI to decide when AI should run.</h2><p>Deployed on AWS · built for the Heat and Water track.</p><p class=note>Water and carbon are modelled from published cooling curves, weather and grid forecasts. Absolute litres are uncertain; the ranking of slots holds up.</p></div>`),
   };
 
@@ -149,11 +158,14 @@ const page_ = (body) => `<!doctype html><meta charset=utf-8><style>${fontFace}${
   await cap(""); await fast(1); await page.mouse.wheel(0, 420); await sleep(400); await fast(0);
   await line("Every option considered is listed, so the choice can be audited.");
   await nav("queue", 1000);
-  await line("The queue tracks every job, from placed and waiting to running and done.");
+  await line("The queue tracks every job and its status.");
   // 5. architecture
   await card("arch");
   await line("An hourly Step Functions pipeline refreshes forecasts. Each job gets its own state machine…");
   await line("…that waits for the chosen hour, launches in that region, writes a receipt and emails you.");
+  await card("stack");
+  await line("Python on Lambda, React on Amplify, DynamoDB and Step Functions. One AWS SAM template deploys the whole stack.");
+  await cap(""); await sleep(3500);
   // 6. receipt, savings, forecasts, price API
   await app(`receipt/${HERO_JOB}`, 1200);
   await line("Every job gets a receipt: modelled water and carbon saved, with a measured stand-in run.");
@@ -183,7 +195,8 @@ const page_ = (body) => `<!doctype html><meta charset=utf-8><style>${fontFace}${
   await cap(""); await fast(1); await page.mouse.wheel(0, 460); await sleep(300); await fast(0);
   await line("Simulated demo: 47 kW of IT demand falls to 19 kW, and every deadline still holds.");
   await nav("docs/how-placement-works", 1000);
-  await line("Full documentation in the app: concepts, user guide, API reference, FAQ.");
+  await line("Full documentation is built into the app.");
+  await card("learn"); await line("What we learned: water and carbon can disagree, models must beat a baseline, and numbers need honest ranges."); await cap(""); await sleep(2500);
   await card("close"); await line("Water and carbon are modelled, so absolute litres are uncertain. The ranking of slots holds up.");
   await cap(""); await sleep(600);
   closeCue();
