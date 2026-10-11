@@ -1,9 +1,10 @@
 """Turn record.js output into demo.mp4 and rescale demo.srt to the video's real length.
 Playwright records page loads slower than the script's own clock, so cue times drift by ~5%.
-Usage: python3 finish.py /path/to/OUT"""
+Usage: python3 finish.py /path/to/OUT [speed]"""
 import re, subprocess, sys
 out = sys.argv[1]
-subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", f"{out}/demo.webm", "-c:v", "libx264", "-pix_fmt", "yuv420p",
+speed = float(sys.argv[2]) if len(sys.argv) > 2 else 1.0   # e.g. 1.08 to fit the 3-minute limit
+subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", f"{out}/demo.webm", "-vf", f"setpts=PTS/{speed}", "-r", "25", "-c:v", "libx264", "-pix_fmt", "yuv420p",
                 "-crf", "23", "-preset", "medium", "-movflags", "+faststart", f"{out}/demo.mp4"], check=True)
 dur = float(subprocess.check_output(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", f"{out}/demo.mp4"]))
 txt = open(f"{out}/demo.srt").read()

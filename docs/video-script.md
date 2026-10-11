@@ -1,55 +1,56 @@
 # Demo video
 
-`demo.mp4` (about 3:00, 1280×720, captions burned in) is recorded automatically from the **deployed API** by
-`docs/video/record.js`, so every number on screen is real and current at recording time. Re-record any time:
+`demo.mp4` (170 s, 1280×720, captions burned in) is recorded automatically from the **deployed API** by
+`docs/video/record.js`, so every number on screen is real and current at recording time. The competition limit is
+**3:00**; keep the final upload under it. Re-record any time:
 
 ```bash
-cd dashboard && VITE_API_URL=<ApiUrl> npm run build && npx vite preview --port 4173 &
+cd dashboard && VITE_API_URL=<ApiUrl> VITE_COGNITO_CLIENT_ID=<UserPoolClientId> npm run build && npx vite preview --port 4173 &
 API=<ApiUrl> OUT=/tmp/demo NODE_PATH=<playwright node_modules> node docs/video/record.js
-python3 docs/video/finish.py /tmp/demo        # demo.mp4 + a rescaled demo.srt
+python3 docs/video/finish.py /tmp/demo 1.08      # demo.mp4 (8% faster, to fit 3:00) + a rescaled demo.srt
 ```
 
-Recording submits one real demo job (it emails the notification address when it is placed and finishes).
+Recording submits one real demo job (it emails the notification address when it is placed and finishes) and sends one
+real assistant request.
 
-## Caption script (the narration to read if you add a voice-over)
-- **0:00** AI jobs need electricity, and the data centres behind them need cooling water.
-- **0:08** Right now, one kWh of AI compute in Mumbai takes about 4.7 litres of water and 0.8 kg of CO₂.
-- **0:15** In Stockholm: about 1 litre, and 0.02 kg. That is 5× the water and 33× the carbon.
-- **0:26** Most AI work is not urgent. You tell Tidewise how much compute you need, and by when.
-- **0:37** You choose how much water and carbon each matter.
-- **0:42** The estimate updates live: run now in Mumbai, or wait for a better slot and region.
-- **0:49** Every hour Tidewise forecasts weather and grid carbon for eight AWS regions, 48 hours ahead.
-- **0:55** It prices every region and every hour. Blue is cheaper than running now in Mumbai.
-- **1:03** The cheapest slot: eu-central-1, 12 Oct 2026 11:00 UTC, 88% lower cost than now.
-- **1:12** The table and map show litres of water and kilograms of CO₂ for every region at that hour.
-- **1:25** Place the job. Tidewise searches every region and hour that still meets the deadline.
-- **1:32** It explains the choice in plain language, with the water and carbon it saves, and a range for the uncertainty.
-- **1:41** Every option it considered is listed, so the choice can be audited.
-- **1:46** An hourly Step Functions pipeline refreshes forecasts. Each job gets its own state machine that waits for the chosen hour…
-- **1:53** …then launches in the chosen region, writes a receipt, and emails you. Forecast models are only used where they beat a naive baseline.
-- **2:02** A finished job placed through the built-in assistant: it ran in Ireland instead of Mumbai.
-- **2:09** Each job gets a receipt to share or print. Water and carbon are modelled; the stand-in workload's energy is measured. We say which is which.
-- **2:20** Across 10 jobs placed so far: 44 litres of water and 7.8 kg of CO₂ saved, by team and over time.
-- **2:29** And when the grid fails, DG-Shift protects critical services and defers flexible work while the site runs on a generator.
-- **2:36** Simulated demo: 47 kW of IT demand drops to 19 kW. 42 kWh of work moves to later. Every deadline still holds.
-- **2:45** Everything is documented in the app: concepts, user guide, API reference, FAQ.
-- **2:49** Water and carbon are modelled, so absolute litres are uncertain. The ranking of slots holds up.
+## Caption script
+- **0:00** Tidewise decides where and when to run AI jobs, so they use the least water and carbon.
+- **0:06** One kWh of AI compute right now: in Mumbai, 3.9 litres of water and 0.6 kg of CO₂.
+- **0:11** In Stockholm: 1 litre and 0.02 kg. 4× the water, 26× the carbon.
+- **0:18** Most AI work is not urgent. Say how much compute you need, and by when.
+- **0:26** Choose how much water and carbon each matter.
+- **0:31** The estimate updates live, against running now in Mumbai.
+- **0:35** Hourly forecasts of weather and grid carbon for eight AWS regions, 48 hours ahead.
+- **0:40** Every region and hour is priced. Blue is cheaper than running now in Mumbai.
+- **0:45** Cheapest slot: eu-north-1, 86% lower cost than now.
+- **0:50** Litres of water and kg of CO₂ for every region, on a table and map.
+- **1:01** Place the job: every region and hour that meets the deadline is searched.
+- **1:07** A plain-language explanation, with litres and kg saved and their uncertainty ranges.
+- **1:11** Waiting jobs are re-checked as forecasts change: an email nudge, and a one-click move.
+- **1:16** Every option considered is listed, so the choice can be audited.
+- **1:21** The queue tracks every job, from placed and waiting to running and done.
+- **1:25** An hourly Step Functions pipeline refreshes forecasts. Each job gets its own state machine…
+- **1:30** …that waits for the chosen hour, launches in that region, writes a receipt and emails you.
+- **1:36** Every job gets a receipt: modelled water and carbon saved, with a measured stand-in run.
+- **1:43** Copy a link, download JSON or CSV, or print it.
+- **1:48** Across 12 jobs so far: 54 litres of water and 9.3 kg of CO₂ saved, by team and over time.
+- **1:54** Forecast quality is public. A learned model is used only where it beats a naive baseline.
+- **2:00** Or just ask. The assistant reads the live cost surface, and can place jobs.
+- **2:23** Platform leads set team rules (weights, regions, residency, delay) behind Cognito sign-in.
+- **2:29** DG-Shift: when the grid fails, critical services stay up and flexible work is deferred.
+- **2:34** Simulated demo: 47 kW of IT demand falls to 19 kW, and every deadline still holds.
+- **2:40** Full documentation in the app: concepts, user guide, API reference, FAQ.
+- **2:44** Water and carbon are modelled, so absolute litres are uncertain. The ranking of slots holds up.
 
-## Scenes
-1. Title and the problem: live water and CO₂ per kWh, Mumbai against Stockholm (`/price`).
-2. Submit: describe a job, set the water/carbon balance.
-3. Surface: scrub 48 hours, find the cheapest region and hour.
-4. Place a real job and read the explanation and the options considered.
-5. How it runs on AWS (diagram).
-6. A finished job and its receipt.
-7. Savings so far (live `/savings`).
-8. Power & Operations (DG-Shift). **This scene replays output of the real backend code as a fixture** because resetting the
-   live demo needs a platform-leads sign-in. To show it live, sign in, press Reset demo, run the scenario, and screen-record it.
-9. Docs, then the closing card.
+## What the video shows
+Problem and live numbers · Submit · 48-hour cost surface with map · placing a real job, its explanation and options ·
+reschedule and nudges · the queue · how it runs on AWS (diagram) · a receipt with share/export · cumulative savings ·
+forecast quality · the assistant answering live · team policies (sign-in) · DG-Shift Power & Operations · in-app docs.
 
-## Not in the video, and why
-- The trace replay (e.g. "500 jobs from a public GPU trace") is **not claimed**: it needs the real-data run on a machine
-  with Open-Meteo access (see HUMAN-TODO.md). Add a scene with its real numbers once you have them.
-- AWS console shots (Step Functions graph, CloudWatch) can't be captured from here; record them yourself and cut them
-  in after the architecture slide.
-- No voice-over: add your own over the captions, or leave the captions as they are.
+## Not shown, and why
+- **Operations scene** replays output of the real backend code as a fixture, because the live demo needs a
+  `platform-leads` sign-in to reset. It is labelled simulated on screen.
+- **Team policy editing** needs a signed-in platform lead; only the sign-in screen is shown.
+- Not covered in 3 minutes: split jobs, data-residency constraints, the public `/price` API, the CLI.
+- **Trace replay** is not claimed; it needs the real-data run (see HUMAN-TODO.md).
+- AWS console shots can't be captured from the build environment.
