@@ -55,6 +55,15 @@ const page_ = (body) => `<!doctype html><meta charset=utf-8><style>${fontFace}${
       <path d="M940 146 V198 H100 V250" stroke="#3fa3cc" stroke-dasharray="5 5" marker-end="url(#a)"/><text x="520" y="190" text-anchor="middle" font-size="14" fill="#3fa3cc" stroke="none">the scheduler reads the stored forecast</text>
       <defs><marker id="a" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8z" fill="#8c8c8c" stroke="none"/></marker></defs></svg>
       </div>`),
+    price: page_(`<div class=card><div class=eyebrow>Public API · no key · cached 5 minutes</div><h2>GET /price?region=ap-south-1&amp;gpu=a100</h2>
+      <pre style="margin:0;padding:26px 30px;background:#151515;border:1px solid #3b3b3b;border-radius:4px;font:500 24px/1.5 'IBM Plex Mono',monospace;color:#ededed">{
+  "region": "ap-south-1",
+  "per_kwh_it": {
+    "litres": ${mum.per_kwh_it.litres.toFixed(2)},        <span style="color:#8c8c8c">// ${mum.per_kwh_it.litres_site.toFixed(2)} cooling + ${mum.per_kwh_it.litres_grid.toFixed(2)} power plant</span>
+    "kg_co2": ${mum.per_kwh_it.kg_co2.toFixed(3)}
+  },
+  "inputs": { "t_wb": ${mum.inputs.t_wb.toFixed(1)}, "ci_g_per_kwh": ${mum.inputs.ci_g_per_kwh} }
+}</pre><p class=note>Live response, with low and high ranges. For any region and any hour in the next 48.</p></div>`),
     close: page_(`<div class=card><div class=eyebrow>Tidewise</div><h2>We used AI to decide when AI should run.</h2><p>Deployed on AWS · built for the Heat and Water track.</p><p class=note>Water and carbon are modelled from published cooling curves, weather and grid forecasts. Absolute litres are uncertain; the ranking of slots holds up.</p></div>`),
   };
 
@@ -70,6 +79,8 @@ const page_ = (body) => `<!doctype html><meta charset=utf-8><style>${fontFace}${
       #__cap.on{opacity:1}`;
       document.head.append(s);
       const c = document.createElement("div"); c.id = "__cur"; document.body.append(c);
+      const m = document.createElement("div"); m.id = "__mark"; m.style.cssText = "position:fixed;left:0;top:0;width:6px;height:6px;z-index:100000;display:none"; document.body.append(m);
+      window.__fast = (k) => { m.style.display = k ? "block" : "none"; m.style.background = k === 2 ? "#00ffff" : "#ff00ff"; };
       const p = document.createElement("div"); p.id = "__cap"; document.body.append(p);
       addEventListener("mousemove", (e) => { c.style.left = e.clientX + "px"; c.style.top = e.clientY + "px"; }, true);
       addEventListener("mousedown", () => c.classList.add("d"), true); addEventListener("mouseup", () => c.classList.remove("d"), true);
@@ -92,86 +103,89 @@ const page_ = (body) => `<!doctype html><meta charset=utf-8><style>${fontFace}${
   const click = async (sel) => { await moveTo(sel); await page.mouse.down(); await sleep(90); await page.mouse.up(); await sleep(300); };
   const say = async (text, ms) => { await cap(text); await sleep(ms); };
 
-  const nav = async (hash, wait = 800) => { await page.evaluate((h) => { location.hash = "#/" + h; }, hash); await sleep(wait); };
-  const app = async (hash, wait = 1300) => { await page.goto(`${APP}/#/${hash}`); await sleep(wait); };
-  // 1. title
-  await card("title"); await say("Tidewise decides where and when to run AI jobs, so they use the least water and carbon.", 4800);
-  // 2. the problem
+  // fast(0|1|2): marks the recording so finish.py plays typing/page loads at 3x (1) and waits at 6x (2). Captions stay at normal speed.
+  const fast = async (k) => { await page.evaluate((k) => window.__fast && window.__fast(k), k); };
+  const nav = async (hash, wait = 700) => { await fast(1); await page.evaluate((h) => { location.hash = "#/" + h; }, hash); await sleep(wait); await fast(0); };
+  const app = async (hash, wait = 1200) => { await page.goto(`${APP}/#/${hash}`); await fast(1); await sleep(wait); await fast(0); };
+  const read = (text) => Math.max(2000, text.split(/\s+/).length * 250 + 600);   // ~3 words a second plus a beat
+  const line = async (text) => say(text, read(text));
+  // 1. title + problem
+  await card("title"); await line("Tidewise decides where and when to run AI jobs, so they use the least water and carbon.");
   await card("problem");
-  await say(`One kWh of AI compute right now: in Mumbai, ${L(mum).toFixed(1)} litres of water and ${K(mum).toFixed(1)} kg of CO₂.`, 5000);
-  await say(`In Stockholm: ${L(sto).toFixed(0)} litre and ${K(sto).toFixed(2)} kg. ${(L(mum) / L(sto)).toFixed(0)}× the water, ${(K(mum) / K(sto)).toFixed(0)}× the carbon.`, 5000);
-  // 3. submit
+  await line(`One kWh of AI compute right now: in Mumbai, ${L(mum).toFixed(1)} litres of water and ${K(mum).toFixed(1)} kg of CO₂.`);
+  await line(`In Stockholm: ${L(sto).toFixed(0)} litre and ${K(sto).toFixed(2)} kg. ${(L(mum) / L(sto)).toFixed(0)}× the water, ${(K(mum) / K(sto)).toFixed(0)}× the carbon.`);
+  // 2. submit
   await app("submit", 1500);
-  await say("Most AI work is not urgent. Say how much compute you need, and by when.", 2200);
+  await line("Say how much compute you need, and by when.");
+  await cap(""); await fast(1);
   await click("#name"); await page.keyboard.type("nightly fine-tune", { delay: 45 });
   await click("#gpu_hours"); await page.keyboard.press("Control+A"); await page.keyboard.type("4", { delay: 90 });
-  await click(".chips .chip >> nth=2"); await sleep(500);
-  await say("Choose how much water and carbon each matter.", 1800);
-  await moveTo("#water"); await page.focus("#water"); for (let i = 0; i < 3; i++) { await page.keyboard.press("ArrowRight"); await sleep(220); } await sleep(500);
-  await say("The estimate updates live, against running now in Mumbai.", 3200);
-  // 4. surface
-  await nav("surface", 1500);
-  await say("Hourly forecasts of weather and grid carbon for eight AWS regions, 48 hours ahead.", 3600);
-  await moveTo("#hr"); await page.focus("#hr");
-  await say("Every region and hour is priced. Blue is cheaper than running now in Mumbai.", 800);
-  for (let i = 0; i < 22; i++) { await page.keyboard.press("ArrowRight"); await sleep(130); }
-  await sleep(700);
-  await say(`Cheapest slot: ${best.region}, ${pct(best.cost, 1)}% lower cost than now.`, 2500);
-  await click(".heat-cell.best"); await sleep(700);
-  await page.mouse.wheel(0, 520); await sleep(500);
-  await say("Litres of water and kg of CO₂ for every region, on a table and map.", 3500);
-  // 5. place + job + reschedule
-  await nav("submit", 1200);
+  await click(".chips .chip >> nth=2"); await fast(0);
+  await line("Choose how much water and carbon each matter.");
+  await cap(""); await fast(1);
+  await moveTo("#water"); await page.focus("#water"); for (let i = 0; i < 3; i++) { await page.keyboard.press("ArrowRight"); await sleep(200); }
+  await click(".check input[type=checkbox] >> nth=0"); await click("summary"); await sleep(300); await page.mouse.wheel(0, 300); await sleep(300); await fast(0);
+  await line("Add constraints: keep data in one jurisdiction, limit regions, or let the job split across hours.");
+  await cap(""); await fast(1); await page.mouse.wheel(0, -600); await sleep(500); await fast(0);
+  await line("The estimate updates live, against running now in Mumbai.");
+  // 3. surface
+  await nav("surface", 1300);
+  await line("Hourly forecasts of weather and grid carbon for eight AWS regions, 48 hours ahead.");
+  await cap(""); await fast(1); await moveTo("#hr"); await page.focus("#hr");
+  for (let i = 0; i < 22; i++) { await page.keyboard.press("ArrowRight"); await sleep(120); } await fast(0);
+  await line(`Every region and hour is priced. Cheapest slot: ${best.region}, ${pct(best.cost, 1)}% lower cost than now.`);
+  await cap(""); await fast(1); await click(".heat-cell.best"); await sleep(400); await page.mouse.wheel(0, 520); await sleep(400); await fast(0);
+  await line("Litres of water and kg of CO₂ for every region, on a table and map.");
+  // 4. place + job
+  await nav("submit", 1000);
+  await fast(1);
   await click("#name"); await page.keyboard.type("nightly fine-tune (demo)", { delay: 30 });
   await click("#gpu_hours"); await page.keyboard.press("Control+A"); await page.keyboard.type("4", { delay: 60 });
-  await click(".chips .chip >> nth=2");
-  await say("Place the job: every region and hour that meets the deadline is searched.", 2300);
-  await click("button.primary"); await sleep(2200);
-  await say("A plain-language explanation, with litres and kg saved and their uncertainty ranges.", 4200);
-  await say("Waiting jobs are re-checked as forecasts change: an email nudge, and a one-click move.", 4200);
-  await page.mouse.wheel(0, 420); await sleep(400);
-  await say("Every option considered is listed, so the choice can be audited.", 3200);
-  // 6. queue
-  await nav("queue", 1300);
-  await say("The queue tracks every job, from placed and waiting to running and done.", 3600);
-  // 7. architecture
+  await click(".chips .chip >> nth=2"); await fast(0);
+  await line("Place the job: every region and hour that meets the deadline is searched.");
+  await cap(""); await fast(1); await click("button.primary"); await sleep(1800); await fast(0);
+  await line("A plain-language explanation, with litres and kg saved and their uncertainty ranges.");
+  await line("Waiting jobs are re-checked as forecasts change: an email nudge, and a one-click move.");
+  await cap(""); await fast(1); await page.mouse.wheel(0, 420); await sleep(400); await fast(0);
+  await line("Every option considered is listed, so the choice can be audited.");
+  await nav("queue", 1000);
+  await line("The queue tracks every job, from placed and waiting to running and done.");
+  // 5. architecture
   await card("arch");
-  await say("An hourly Step Functions pipeline refreshes forecasts. Each job gets its own state machine…", 4800);
-  await say("…that waits for the chosen hour, launches in that region, writes a receipt and emails you.", 4800);
-  // 8. receipt
-  await app(`receipt/${HERO_JOB}`, 1500);
-  await say("Every job gets a receipt: modelled water and carbon saved, with a measured stand-in run.", 4200);
-  await click("button.primary"); await sleep(400);
-  await say("Copy a link, download JSON or CSV, or print it.", 2600);
-  // 9. savings
-  await nav("savings", 1300);
+  await line("An hourly Step Functions pipeline refreshes forecasts. Each job gets its own state machine…");
+  await line("…that waits for the chosen hour, launches in that region, writes a receipt and emails you.");
+  // 6. receipt, savings, forecasts, price API
+  await app(`receipt/${HERO_JOB}`, 1200);
+  await line("Every job gets a receipt: modelled water and carbon saved, with a measured stand-in run.");
+  await cap(""); await fast(1); await click("button.primary"); await sleep(300); await fast(0);
+  await line("Copy a link, download JSON or CSV, or print it.");
+  await nav("savings", 1000);
   const sv = (await get("/savings?days=30")).totals;
-  await say(`Across ${sv.jobs} jobs so far: ${sv.litres_saved.toFixed(0)} litres of water and ${sv.kg_co2_saved.toFixed(1)} kg of CO₂ saved, by team and over time.`, 4800);
-  // 10. forecast quality
-  await nav("quality", 1500);
-  await say("Forecast quality is public. A learned model is used only where it beats a naive baseline.", 4800);
-  // 11. assistant
-  await nav("assistant", 1000);
-  await say("Or just ask. The assistant reads the live cost surface, and can place jobs.", 2600);
-  await click("#msg"); await page.keyboard.type("Which region is cheapest for 2 GPU-hours right now?", { delay: 30 });
-  await page.keyboard.press("Enter"); await cap("");
+  await line(`Across ${sv.jobs} jobs so far: ${sv.litres_saved.toFixed(0)} litres of water and ${sv.kg_co2_saved.toFixed(1)} kg of CO₂ saved, by team and over time.`);
+  await nav("quality", 1200);
+  await line("Forecast quality is public. A learned model is used only where it beats a naive baseline.");
+  await card("price");
+  await line("A public price API returns the water and carbon cost of compute for any region and hour.");
+  // 7. assistant
+  await app("assistant", 1000);
+  await line("Or just ask. The assistant reads the live cost surface, and can place jobs.");
+  await cap(""); await fast(1); await click("#msg"); await page.keyboard.type("Which region is cheapest for 2 GPU-hours right now?", { delay: 30 });
+  await page.keyboard.press("Enter"); await fast(2);
   await page.waitForFunction(() => { const b = [...document.querySelectorAll(".msg.bot .body")]; const l = b[b.length - 1]; return l && !l.classList.contains("muted"); }, null, { timeout: 40000 });
-  await sleep(3500);
-  // 12. policies
-  await nav("policies", 1200);
-  await say("Platform leads set team rules (weights, regions, residency, delay) behind Cognito sign-in.", 4200);
-  // 13. operations
+  await fast(0); await sleep(3500);
+  // 8. policies, DG-Shift, docs, close
+  await nav("policies", 1000);
+  await line("Platform leads set team rules (weights, regions, residency, delay) behind Cognito sign-in.");
   await page.route(`${API}/facilities`, (r) => r.fulfill({ status: 200, contentType: "application/json", headers: { "access-control-allow-origin": "*" }, body: fs.readFileSync(path.join(FIX, "facs.json")) }));
   await page.route(`${API}/facilities/**`, (r) => r.fulfill({ status: 200, contentType: "application/json", headers: { "access-control-allow-origin": "*" }, body: fs.readFileSync(path.join(FIX, "fac.json")) }));
-  await nav("operations", 1500);
-  await say("DG-Shift: when the grid fails, critical services stay up and flexible work is deferred.", 4000);
-  await page.mouse.wheel(0, 460); await sleep(500);
-  await say("Simulated demo: 47 kW of IT demand falls to 19 kW, and every deadline still holds.", 4800);
-  // 14. docs + close
-  await nav("docs/how-placement-works", 1200);
-  await say("Full documentation in the app: concepts, user guide, API reference, FAQ.", 3200);
-  await card("close"); await say("Water and carbon are modelled, so absolute litres are uncertain. The ranking of slots holds up.", 4800);
-  await cap(""); await sleep(800);
+  await nav("operations", 1200);
+  await line("DG-Shift: when the grid fails, critical services stay up and flexible work is deferred.");
+  await cap(""); await fast(1); await page.mouse.wheel(0, 460); await sleep(300); await fast(0);
+  await line("Simulated demo: 47 kW of IT demand falls to 19 kW, and every deadline still holds.");
+  await nav("docs/how-placement-works", 1000);
+  await line("Full documentation in the app: concepts, user guide, API reference, FAQ.");
+  await card("close"); await line("Water and carbon are modelled, so absolute litres are uncertain. The ranking of slots holds up.");
+  await cap(""); await sleep(600);
   closeCue();
   fs.writeFileSync(path.join(OUT, "demo.srt"), srt.join("\n"));
   const v = page.video(); await ctx.close(); await v.saveAs(path.join(OUT, "demo.webm")); await browser.close();
